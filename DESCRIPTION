@@ -1,5 +1,5 @@
 Package: prismrepl
-Title: A Unicode-Aware Interactive Console for R
+Title: Snappy and rich TUI R console
 Version: 0.5.1
 Authors@R: person("Alek", "Rutkowski", email = "alek.rutkowski@gmail.com",
     role = c("aut", "cre", "cph"))
@@ -25,3 +25,5 @@ Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes
 SystemRequirements: C99
 Config/roxygen2/version: 8.1.1
+Author: Alek Rutkowski [aut, cre, cph]
+Maintainer: Alek Rutkowski <alek.rutkowski@gmail.com>
