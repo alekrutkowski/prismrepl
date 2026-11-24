@@ -1,0 +1,12 @@
+.Rhistory
+.RData
+.Ruserdata
+*.o
+*.so
+*.dll
+*.dylib
+*.tar.gz
+*.tgz
+*.zip
+*.Rcheck/
+.DS_Store

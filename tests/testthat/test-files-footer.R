@@ -1,0 +1,77 @@
+test_that("file listings and previews are bounded and never execute scripts", {
+  directory <- tempfile("file explorer ")
+  dir.create(directory)
+  on.exit(unlink(directory, recursive = TRUE), add = TRUE)
+  dir.create(file.path(directory, "folder"))
+  script <- file.path(directory, "my script.R")
+  writeLines(c("stop('not executed')", "# a note", "1 + 1"), script)
+  entries <- .file_entries(directory)
+  expect_identical(entries$name, c("..", "folder", "my script.R"))
+  expect_identical(entries$directory, c(TRUE, TRUE, FALSE))
+  expect_identical(.file_entries(directory, query = "SCRIPT")$name, c("..", "my script.R"))
+  preview <- .file_preview(script, lines = 2L)
+  expect_identical(preview$language, "R")
+  expect_true(preview$truncated)
+  expect_identical(preview$lines[[1L]], "stop('not executed')")
+  binary <- file.path(directory, "binary.dat")
+  writeBin(as.raw(c(0, 1, 2)), binary)
+  expect_match(.file_preview(binary)$lines, "Binary file")
+  lapply(c(20L, 40L, 80L, 132L), function(width) {
+    table <- .file_table(entries, width)
+    expect_true(all(.panel_cells(table$lines) == width))
+    expect_equal(.panel_cells(table$heading), width)
+  })
+})
+
+test_that("all three session modules retain headings and mapped click targets", {
+  cfg <- repl_config(color = FALSE, settings_file = NULL)
+  env <- list2env(stats::setNames(as.list(seq_len(20L)), paste0("v", seq_len(20L))))
+  groups <- .session_sidebar(env, cfg)
+  expect_identical(names(groups), c("WORKSPACE", "PACKAGES", "FILES"))
+  lapply(c(12L, 28L), function(height) {
+    sidebar <- .sidebar_frame(groups, 35L, height, cfg)
+    text <- paste(sidebar$lines, collapse = "\n")
+    expect_match(text, "WORKSPACE")
+    expect_match(text, "PACKAGES")
+    expect_match(text, "FILES")
+    expect_length(sidebar$actions, height)
+    expect_true(any(startsWith(sidebar$actions, ":cd ") | sidebar$actions == ":files"))
+  })
+  screen <- screen_state()
+  screen$sidebar <- groups
+  frame <- .screen_compose(screen, list(lines = "r> ", cursor_row = 0L, cursor_column = 3L),
+    cfg, width = 132L, height = 40L)
+  row <- which(nzchar(frame$sidebar_actions))[[1L]]
+  event <- list(type = "mouse", button = "left", action = "press", x = 130L, y = row)
+  expect_identical(.sidebar_command(event, frame), frame$sidebar_actions[[row]])
+  event$x <- 2L
+  expect_null(.sidebar_command(event, frame))
+})
+
+test_that("shared footer colors keys and uses two-space separation", {
+  cfg <- repl_config(color = TRUE, color_depth = 16777216L, settings_file = NULL)
+  footer <- .footer_hints(c(Enter = "choose", Esc = "close"), cfg, 60L)
+  expect_match(footer, "\033[", fixed = TRUE)
+  expect_match(cli::ansi_strip(footer), "Enter choose  Esc close", fixed = TRUE)
+  expect_false(grepl("|", cli::ansi_strip(footer), fixed = TRUE))
+  expect_equal(.screen_width(footer), 60L)
+  expect_equal(.screen_width(.footer_hints(c(Enter = "choose", Esc = "close"), cfg, 12L)), 12L)
+})
+
+test_that("a multiline condition remains one block across resize and theme changes", {
+  cfg <- repl_config(color = TRUE, settings_file = NULL)
+  lapply(c("message", "warning", "error"), function(role) {
+    screen <- screen_state()
+    condition <- .condition_lines(c("first\r\nsecond", "third"), role, cfg, width = 60L)
+    screen_append(screen, condition, role, ansi = TRUE)
+    expect_length(screen$entries, 1L)
+    expect_identical(screen$entries[[1L]]$condition$text, "first\nsecond\nthird")
+    cfg$theme <- repl_theme("white")
+    lines <- cli::ansi_strip(.screen_entry_lines(screen$entries[[1L]], cfg, width = 38L))
+    expect_equal(sum(grepl(paste0("[", toupper(role), "]"), lines, fixed = TRUE)), 1L)
+    expect_equal(sum(grepl("\u256d", lines, fixed = TRUE)), 1L)
+    expect_equal(sum(grepl("\u2570", lines, fixed = TRUE)), 1L)
+    expect_true(all(vapply(c("first", "second", "third"), function(x) any(grepl(x, lines, fixed = TRUE)), logical(1L))))
+    expect_false(any(grepl("\\x0d", lines, fixed = TRUE)))
+  })
+})

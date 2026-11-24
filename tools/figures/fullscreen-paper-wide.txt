@@ -1,0 +1,40 @@
+ PRISM REPL  0.5.1                                                                                                           ERROR 
+ SESSION  live ───────────────────────────────────────────────────────────────────────────────│ SESSION INFO ──────────────────────
+ r> inspect_flowers(flowers)                                                                  │ WORKSPACE                          
+   Sepal.Length Sepal.Width Petal.Length Petal.Width Species                                  │  check_response  function ~6 Kb    
+ 1          5.1         3.5          1.4         0.2  setosa                                  │  fit_flowers  function ~1.6 Kb     
+ 2          4.9          NA          1.4         0.2  setosa                                  │  flowers  data.frame 150 x 5 ~7....
+ 3          4.7         3.2          1.3         0.2  setosa                                  │  inspect_flowers  function ~8.9 Kb 
+ ╭─  • [MESSAGE]  ──────────────────────────────────────────────────────────────────────────╮ │  label  character ~152 bytes       
+ │ 150 rows loaded; UTF-8 labels ready: μ, σ, café.                                         │ │  :objects inspect  :rm select      
+ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │ PACKAGES                           
+ ╭─  ! [WARNING]  ──────────────────────────────────────────────────────────────────────────╮ │  stats                             
+ │ 2 Sepal.Width values are missing; results omit incomplete rows.                          │ │  graphics                          
+ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │  grDevices                         
+ ╭─  × [ERROR]  ────────────────────────────────────────────────────────────────────────────╮ │  utils                             
+ │ Response column 'Class' was not found. Use 'Species'.                                    │ │  datasets                          
+ │                                                                                          │ │  methods                           
+ │ Call trace (outer calls first)                                                           │ │  base                              
+ │ 1. inspect_flowers(flowers)                                                              │ │  :packages list  :detach select    
+ │ 2. fit_flowers(x)                                                                        │ │ FILES                              
+ │ 3. check_response(x$Class)                                                               │ │  ../                               
+ │ 4. stop("Response column 'Class' was not found. Use 'Species'.", call. = FALSE)          │ │  .github/                          
+ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │  dist/                             
+   Explain with Mistral AI ↗                                                                  │  inst/                             
+                                                                                              │  man/                              
+                                                                                              │  R/                                
+                                                                                              │  src/                              
+                                                                                              │  tests/                            
+                                                                                              │  tools/                            
+                                                                                              │  .gitattributes                    
+                                                                                              │  .gitignore                        
+                                                                                              │  .Rbuildignore                     
+                                                                                              │  CONTRIBUTING.md                   
+                                                                                              │  cran-comments.md                  
+ R  edit ─────────────────────────────────────────────────────────────────────────────────────│  DESCRIPTION                       
+ r> flowers |>                                                                                │  LICENSE                           
+ +    subset(!is.na(Sepal.Width)) |>                                                          │  LICENSE.md                        
+ +    transform(ratio = Sepal.Length / Sepal.Width) |>                                        │  +5 more                           
+ +    head(6L)  # Tab completes names; F1 opens shortcuts                                     │  :files browse                     
+ objects: 5  |  packages: 7 attached  |  objects ~23.8 Kb                                                                          
+ Enter run  Ctrl+J newline  Tab complete  Ctrl+R history  F1 keys  PageUp scroll                                                   

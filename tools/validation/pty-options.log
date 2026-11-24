@@ -1,0 +1,4 @@
+PASS: current-option focus, navigation/cancel, search plus explicit acceptance, saved AI/pipe/
+mouse/editing choices, staged custom AI and bindings, tiny resize with description-to-record
+mapping, shortcut disabling, nested settings selection, status multiselect/clear/cancel,
+one alternate screen, no rolling redraw, cursor restoration, and exact terminal restoration.

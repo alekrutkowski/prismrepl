@@ -1,0 +1,88 @@
+name: R package checks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.os }} / R ${{ matrix.r }} / ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, arch: x86_64, r: release}
+          - {os: ubuntu-24.04-arm, arch: arm64, r: release}
+          - {os: windows-2022, arch: x86_64, r: release}
+          - {os: windows-11-arm, arch: arm64, r: release}
+          - {os: macos-15-intel, arch: x86_64, r: release}
+          - {os: macos-15, arch: arm64, r: release}
+          - {os: ubuntu-24.04, arch: x86_64, r: devel}
+          - {os: ubuntu-24.04, arch: x86_64, r: '4.6'}
+    env:
+      R_KEEP_PKG_SOURCE: yes
+      R_COMPILE_AND_INSTALL_PACKAGES: always
+      _R_CHECK_CRAN_INCOMING_REMOTE_: false
+      EXPECTED_ARCH: ${{ matrix.arch }}
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+          Ncpus: '2'
+      - name: Verify native R architecture
+        run: Rscript tools/verify-platform.R
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--as-cran", "--no-manual")'
+          error-on: '"warning"'
+      - name: Exercise an actual POSIX terminal
+        if: runner.os != 'Windows'
+        run: |
+          R CMD INSTALL .
+          python3 tools/pty-smoke.py
+          python3 tools/pty-basic.py
+          python3 tools/pty-fullscreen.py
+          python3 tools/pty-explorer.py
+          python3 tools/pty-commands.py
+          python3 tools/pty-options.py
+          python3 tools/pty-docs.py
+          python3 tools/pty-files.py
+          python3 tools/native/pty-exit.py
+          python3 tools/native/pty-io.py
+      - name: Exercise Windows console modes and the responsive TUI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PRISM_TEST_CLIPBOARD: '1'
+        run: |
+          R CMD INSTALL .
+          if ($LASTEXITCODE -ne 0) { throw 'Package installation failed' }
+          ./tools/windows-console-smoke.ps1
+      - name: Native parser sanitizers
+        if: matrix.os == 'ubuntu-24.04' && matrix.r == 'release'
+        env:
+          PRISM_NATIVE_SANITIZERS: '1'
+        run: sh tools/native/check.sh
+      - name: Verify release manifest safeguards
+        if: matrix.os == 'ubuntu-24.04' && matrix.r == 'release'
+        run: python3 tools/test-release-manifest.py
+

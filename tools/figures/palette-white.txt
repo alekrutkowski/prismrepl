@@ -1,0 +1,36 @@
+ Command palette                                                                                                                   
+ Search: type a name, alias or description                                                                                         
+ Sort: logical groups                                                                                                              
+  [Discover]                                                                                                                       
+  :help [TEXT]  (:h)              Search commands and descriptions; choose one to place it in the input for approval.              
+  :keys  (:k)                     Browse shortcuts; Enter places the selected :bind command in the input.                          
+  :doc TOPIC [PACKAGE]  (:d)      Read styled function documentation; also ?mean or ?stats::lm.                                    
+  :docs PACKAGE  (:ds)            Browse an installed package's documentation index.                                               
+  [Workspace]                                                                                                                      
+  :objects [TEXT]  (:o)           Explore workspace bindings, optionally filtering their names.                                    
+  :view NAME  (:v)                Inspect an object's structure, values, attributes and slots.                                     
+  :edit NAME  (:ed)               Edit a function in a small editor; validate and save explicitly with Ctrl+S.                     
+  :rm [NAME ...]  (:r)            Remove named objects, or select a batch interactively.                                           
+  [Packages]                                                                                                                       
+  :packages  (:p)                 List attached packages and loaded namespaces.                                                    
+> :attach PACKAGE  (:a)           Attach an installed package with library(); Tab completes installed package names.               
+  :detach [PACKAGE ...]  (:de)    Detach named packages, or select a batch; retain namespaces.                                     
+  :install PACKAGE ...  (:i)      Install packages from the configured repositories; Tab uses a cached CRAN index. --refresh       
+                                  refreshes that index.                                                                            
+  :installgh USER/REPO  (:ig)     Install a GitHub package with remotes::install_github(); no quotes needed.                       
+  [Files]                                                                                                                          
+  :files [PATH]  (:f)             Browse directories and preview text files; stage a source command for an R script.               
+  :source PATH  (:so)             Run an R script in this workspace. Unquoted path spaces and single backslashes are preserved.    
+  :cd [PATH]  (:c)                Change working directory; with no path, show the current directory like :pwd.                    
+  :pwd  (:pw)                     Show the current working directory.                                                              
+  :git  (:g)                      Show tracked-file Git status for the current directory.                                          
+  [History and errors]                                                                                                             
+  :history [TEXT]  (:hi)          Browse submitted R expressions and colon commands; optionally filter literal text.               
+  :recall NUMBER  (:re)           Place a numbered history entry in the input for editing and approval.                            
+  :trace  (:tr)                   Show the most recent error's captured call trace.                                                
+  :explain [copy] [minimal]       Show an AI explanation link, or copy its prompt; minimal omits source and call trace.            
+  (:e)                                                                                                                             
+  [Appearance]                                                                                                                     
+  :theme [NAME|auto]  (:t)        Choose a theme or desktop appearance; Enter applies, saves, and repaints.                        
+ 37/37 commands. Selection fills the input; review arguments and press Enter there to run.                                         
+ Enter stage command  Up/Down move  Tab sort  Ctrl+U clear  Escape cancel                                                          

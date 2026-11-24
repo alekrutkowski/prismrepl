@@ -1,0 +1,27 @@
+Package: prismrepl
+Title: A Unicode-Aware Interactive Console for R
+Version: 0.5.1
+Authors@R: person("Alek", "Rutkowski", email = "alek.rutkowski@gmail.com",
+    role = c("aut", "cre", "cph"))
+Description: Provides an opt-in interactive console with multiline editing,
+    syntax highlighting, completion, searchable history, object inspection,
+    documentation browsing, and readable condition traces. A small native
+    terminal layer supports POSIX terminals and the Windows console. A responsive
+    full-screen interface combines a transcript, editor, and workspace sidebar,
+    with buffered rendering, mouse navigation, persistent preferences,
+    structural object exploration, a searchable command palette, file browsing,
+    function editing, clipboard support, styled documentation, labeled conditions,
+    matching delimiter colors, automatic pairing and configurable browser links
+    for error explanations. Initial themes follow detected desktop appearance. Plain
+    console operation is available when terminal capabilities are limited.
+    No external interpreter, service, or network connection is required.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.6.0)
+Imports: cli (>= 3.6.0), stringi (>= 1.7.0), utf8 (>= 1.2.0), methods, stats, utils, tools
+Suggests: testthat (>= 3.2.0), withr, roxygen2, rcmdcheck, remotes
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+NeedsCompilation: yes
+SystemRequirements: C99
+Config/roxygen2/version: 8.1.1

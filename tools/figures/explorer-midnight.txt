@@ -1,0 +1,25 @@
+ Object explorer: analysis                                                                                                         
+ list <list>  |  length 8  |  ~77.8 Kb                                                                                             
+ [Children]   Preview   Attributes                                                                                                 
+  Name            Type / class  Shape / length   Size        Value                                                                 
+> data            data.frame    150 x 5          ~7.1 Kb     <list; 5 children>                                                    
+  fit             lm            length 12        ~56.5 Kb    <list; 12 children>                                                   
+  matrix          integer       6 x 4            ~344 bytes  1, 2, 3, ...                                                          
+  groups          list          length 3         ~11.5 Kb    <list; 3 children>                                                    
+  options         list          length 3         ~672 bytes  <list; 3 children>                                                    
+  labels          character     length 3         ~248 bytes  "café", "μ", "σ"                                                      
+  created         Date          length 1         ~280 bytes  2026-11-23                                                            
+  notes           character     length 1         ~152 bytes  "Click a child; Enter or Right opens it."                             
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+ Items 1-8 of 8  selected 1  [/] batch  s sizes on                                                                                 
+ Enter open  Left parent  Tab view  / filter  F1 keys  q close                                                                     

@@ -1,0 +1,30 @@
+ PRISM REPL  0.5.1                                           ERROR 
+ SESSION  live ────────────────────────────────────────────────────
+ 1          5.1         3.5          1.4         0.2  setosa       
+ 2          4.9          NA          1.4         0.2  setosa       
+ 3          4.7         3.2          1.3         0.2  setosa       
+ ╭─  • [MESSAGE]  ───────────────────────────────────────────────╮ 
+ │ 150 rows loaded; UTF-8 labels ready: μ, σ, café.              │ 
+ ╰───────────────────────────────────────────────────────────────╯ 
+ ╭─  ! [WARNING]  ───────────────────────────────────────────────╮ 
+ │ 2 Sepal.Width values are missing; results omit incomplete     │ 
+ │   rows.                                                       │ 
+ ╰───────────────────────────────────────────────────────────────╯ 
+ ╭─  × [ERROR]  ─────────────────────────────────────────────────╮ 
+ │ Response column 'Class' was not found. Use 'Species'.         │ 
+ │                                                               │ 
+ │ Call trace (outer calls first)                                │ 
+ │ 1. inspect_flowers(flowers)                                   │ 
+ │ 2. fit_flowers(x)                                             │ 
+ │ 3. check_response(x$Class)                                    │ 
+ │ 4. stop("Response column 'Class' was not found. Use           │ 
+ │    'Species'.", call. = FALSE)                                │ 
+ ╰───────────────────────────────────────────────────────────────╯ 
+   Explain with Mistral AI ↗                                       
+ R  edit ──────────────────────────────────────────────────────────
+ r> flowers |>                                                     
+ +    subset(!is.na(Sepal.Width)) |>                               
+ +    transform(ratio = Sepal.Length / Sepal.Width) |>             
+ +    head(6L)  # Tab completes names; F1 opens shortcuts          
+ objects: 5  |  packages: 7 attached  |  objects ~23.8 Kb          
+ Enter run  Tab complete  Ctrl+R history  F1 keys                  

@@ -1,0 +1,5 @@
+PASS: installed rich docs with bold/italic/syntax styles; all literal occurrences;
+same-line next/previous jumps without unnecessary panning; wrapped phrase search;
+mouse copy and right-click paste into search via session clipboard; F1 and resize;
+Unicode leaf previews with finite drill-down; exact heading/data column alignment;
+shared alternate screen, zero scrolling redraws, and exact terminal restoration.

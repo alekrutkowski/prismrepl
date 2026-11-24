@@ -1,0 +1,28 @@
+ Object explorer: analysis / fit                                                                                                   
+ lm <list>  |  length 12  |  ~56.5 Kb                                                                                              
+ [Children]   Preview   Attributes                                                                                                 
+  Name            Type / class   Shape / length   Size        Value                                                                
+> coefficients    numeric        length 3         ~464 bytes  2.24914, 0.595525, 0.47192                                           
+  residuals       numeric        length 150       ~10.8 Kb    0.105835, 0.203598, -0.0683154, ...                                  
+  effects         numeric        length 150       ~2.8 Kb     -71.5659, -1.18838, 9.18843, ...                                     
+  rank            integer        length 1         ~56 bytes   3                                                                    
+  fitted.values   numeric        length 150       ~10.8 Kb    4.99416, 4.6964, 4.76832, ...                                        
+  assign          integer        length 3         ~64 bytes   0, 1, 2                                                              
+  qr              qr             length 5         ~14.8 Kb    <list; 5 children>                                                   
+  df.residual     integer        length 1         ~56 bytes   147                                                                  
+  xlevels         list           length 0         ~208 bytes  <list; 0 children>                                                   
+  call            language       length 3         ~1.5 Kb     stats::lm(formula = Sepal.Length ~ Sepal.Width + Petal.Length, dat...
+  terms           terms/formula  length 3         ~4.5 Kb     Sepal.Length ~ Sepal.Width + Petal.Length                            
+  model           data.frame     150 x 3          ~9.1 Kb     <list; 3 children>                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+                                                                                                                                   
+ Items 1-12 of 12  selected 1  [/] batch  s sizes on                                                                               
+ Enter open  Left parent  Tab view  / filter  F1 keys  q close                                                                     

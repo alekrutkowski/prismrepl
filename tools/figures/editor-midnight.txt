@@ -1,0 +1,24 @@
+ EDIT FUNCTION  describe_numbers  [modified]                                                                             
+ function (x, na.rm = TRUE)                                                                                              
+ {                                                                                                                       
+     stopifnot(`x must be numeric` = is.numeric(x), `na.rm must be a logical scalar` = is.logical(na.rm) &&              
+         length(na.rm) == 1L)                                                                                            
+     values <- if (na.rm)                                                                                                
+         x[!is.na(x)]                                                                                                    
+     else x                                                                                                              
+     out <- list(n = length(values), mean = mean(values), sd = stats::sd(values), quantiles = stats::quantile(values,    
+         probs = c(0.05, 0.5, 0.95)))                                                                                    
+     stopifnot(`summary must contain four components` = is.list(out) && length(out) == 4L)                               
+     out                                                                                                                 
+ }                                                                                                                       
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+                                                                                                                         
+ Line 9/12  Column 34  Save replaces only describe_numbers in this workspace; close discards unsaved edits.              
+ Ctrl+S save  Ctrl+X close  Ctrl+Z undo  Ctrl+W find  Ctrl+N next                                                        

@@ -1,0 +1,25 @@
+{
+  "package": "prismrepl",
+  "version": "0.5.1",
+  "source_members": 106,
+  "source_files_matched": 105,
+  "source_tarball_sha256": "616f9b6c234022fe56cf80346408f142e93b599801886f3c145fe474c343228b",
+  "binary_build_source_matches_checked_source_except_Packaged_timestamp": true,
+  "python_sources_parse": true,
+  "workflow_yaml_parses": true,
+  "release_targets": 6,
+  "NEWS_present": false,
+  "linux_binary_clean_install_and_load": true,
+  "unit_assertions": 2154,
+  "unit_test_blocks": 234,
+  "posix_pty_suites": 10,
+  "cran_check": {
+    "errors": 0,
+    "warnings": 0,
+    "notes": [
+      "New submission"
+    ]
+  },
+  "windows_conpty_cursor_and_option_regressions_configured": true,
+  "windows_executed_locally": false
+}

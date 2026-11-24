@@ -1,0 +1,2 @@
+# Layout-aware shortcuts, Unicode clipboard, and its message-only owner window.
+PKG_LIBS = -luser32

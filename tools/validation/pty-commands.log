@@ -1,0 +1,3 @@
+PASS: description search, sort toggle, narrow palette, staged keyboard/mouse commands,
+explicit function save, rejected invalid function, cancelled staged command, colon history,
+shared alternate screen, no rolling redraw, and exact terminal restoration.

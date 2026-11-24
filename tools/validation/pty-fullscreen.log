@@ -1,0 +1,9 @@
+Fullscreen PTY passed: real ANSI colors and condition badges, clickable links,
+sidebar, footer, keyboard/mouse scrolling, resize-safe and wrapped Unicode input,
+mouse cursor placement, Ctrl+J, modal reuse, and no screen rolling.
+Theme picker passed cancellation, search, keyboard/mouse focus, Enter acceptance and resize.
+Black/white themes use contrasting cursors; unchanged color is cached; exit restores profile color.
+Initial theme was detected and saved without configuration-time writes.
+Typed pairing and AI destinations passed; theme, F4, AI and editing options survived restart.
+Terminal modes were restored after both sessions.
+Real PTY key-to-cursor latency: median=5.12ms, max=10.27ms across 12 edits.
