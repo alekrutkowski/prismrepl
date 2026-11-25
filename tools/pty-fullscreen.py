@@ -19,6 +19,7 @@ import termios
 import time
 import unicodedata
 import statistics
+from pty_support import terminal_snapshot
 
 
 class Screen:
@@ -185,7 +186,7 @@ if os.name != "posix":
 r = os.environ.get("PRISM_R", "R")
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 32, 132, 0, 0))
-original_modes = termios.tcgetattr(slave)
+original_modes = terminal_snapshot(slave)
 model = Screen(32, 132)
 raw = bytearray()
 environment = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
@@ -261,7 +262,7 @@ try:
     wait_screen("PRISM REPL")
     wait_screen("SESSION INFO")
     assert model.alternate and model.enters == 1 and model.leaves == 0
-    assert "F1 keys" in model.text().splitlines()[-1], model.text()
+    assert "F2 keys" in model.text().splitlines()[-1], model.text()
     with open(environment["PRISMREPL_CONFIG_FILE"], encoding="utf-8") as saved_file:
         initial_saved = saved_file.read()
     first_theme = next(line.split(":", 1)[1].strip() for line in initial_saved.splitlines()
@@ -348,7 +349,7 @@ try:
 
     paste('pending <- c("kept", "through resize"); cat("RESIZE_", "BUFFER_OK\\n", sep="")')
     resize(14, 55)
-    wait_screen("F1 keys")
+    wait_screen("F2 keys")
     assert "SESSION INFO" not in model.text(), model.text()
     assert "RESIZE_BUFFER_OK" not in model.text(), "Paste executed before explicit Enter"
     send("\r")
@@ -359,7 +360,7 @@ try:
     # Click a Unicode boundary on the second physical row of one long logical
     # expression. SGR mouse coordinates are one-based terminal cells.
     resize(24, 55)
-    wait_screen("F1 keys")
+    wait_screen("F2 keys")
     paste('invisible("0123456789012345678901234567890123456789"); '
           'mouse_value <- "ab界e\u0301cd"; cat("MOUSE_", mouse_value, "\\n", sep="")')
     wait_screen("mouse_value")
@@ -394,7 +395,7 @@ try:
     expression(":theme " + ("midnight" if first_theme == "paper" else "paper"))
     wait_until(lambda: bool(model.sgr - old_colors), "changed theme ANSI palette")
     wait_screen("SESSION INFO")
-    assert "F1 keys" in model.text().splitlines()[-1], model.text()
+    assert "F2 keys" in model.text().splitlines()[-1], model.text()
     assert not model.bad_cursor, model.bad_cursor
 
     # Theme navigation is provisional. Escape must preserve the data-only
@@ -456,7 +457,7 @@ try:
     assert any("48;2;255;255;255" in code for code in model.sgr), model.sgr
     wait_until(lambda: model.cursor_color == "#000000" and model.cursor_visible,
                "black insertion cursor on white editor")
-    assert "F1 keys" in model.text().splitlines()[-1], model.text()
+    assert "F2 keys" in model.text().splitlines()[-1], model.text()
     expression(":bind newline F4")
     wait_screen("F4 newline")
     expression(":rainbow off")
@@ -473,7 +474,7 @@ try:
     assert model.enters == 1 and model.leaves == 1, (model.enters, model.leaves)
     assert not model.alternate
     assert model.cursor_color == "profile" and model.cursor_visible, "Configured cursor was not restored"
-    assert termios.tcgetattr(slave) == original_modes, "Terminal modes were not restored exactly"
+    assert terminal_snapshot(slave) == original_modes, "Terminal modes were not restored exactly"
 
     # Restart a real R process using the same isolated data-only preferences.
     model = Screen(32, 132)
@@ -516,7 +517,7 @@ try:
     process.wait(timeout=10)
     assert process.returncode == 0, process.returncode
     assert model.enters == 1 and model.leaves == 1, (model.enters, model.leaves)
-    assert termios.tcgetattr(slave) == original_modes, "Restarted terminal modes were not restored"
+    assert terminal_snapshot(slave) == original_modes, "Restarted terminal modes were not restored"
     assert model.cursor_color == "profile" and model.cursor_visible, "Restarted session leaked its cursor color"
     if os.environ.get("PRISM_CAPTURE"):
         with open(os.environ["PRISM_CAPTURE"], "wb") as capture:

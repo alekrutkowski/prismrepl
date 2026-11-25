@@ -26,11 +26,110 @@
   out
 }
 
+#' Recognize Explicit Unicode Byte Order Marks
+#' @param raw Bounded file bytes.
+#' @return Encoding name and number of leading BOM bytes, or UTF-8 with no BOM.
+#' @noRd
+.file_text_encoding <- function(raw) {
+  stopifnot("file bytes must be raw" = is.raw(raw))
+  marks <- list(`UTF-32BE` = as.raw(c(0, 0, 254, 255)),
+    `UTF-32LE` = as.raw(c(255, 254, 0, 0)), `UTF-8` = as.raw(c(239, 187, 191)),
+    `UTF-16BE` = as.raw(c(254, 255)), `UTF-16LE` = as.raw(c(255, 254)))
+  found <- which(vapply(marks, function(mark) identical(utils::head(raw, length(mark)), mark), logical(1L)))
+  out <- if (length(found)) list(encoding = names(marks)[found[[1L]]], bom = length(marks[[found[[1L]]]]))
+    else list(encoding = "UTF-8", bom = 0L)
+  stopifnot("encoding must be recognized Unicode" = out$encoding %in% names(marks),
+    "BOM size must be bounded" = .is_count(out$bom) && out$bom <= 4L)
+  out
+}
+
+#' Clip Only an Incomplete Character at a Preview Byte Boundary
+#' @param raw Bounded bytes with any BOM removed.
+#' @param encoding Explicit Unicode encoding name.
+#' @param truncated Whether further bytes exist beyond the preview budget.
+#' @return A raw prefix ending at a complete encoding unit when truncated.
+#' @noRd
+.file_text_prefix <- function(raw, encoding, truncated) {
+  stopifnot("file bytes must be raw" = is.raw(raw),
+    "encoding must be recognized" = encoding %in% c("UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE"),
+    "truncation flag must be logical" = .is_flag(truncated))
+  count <- length(raw)
+  keep <- count
+  if (truncated && count) {
+    if (startsWith(encoding, "UTF-32")) keep <- count - count %% 4L
+    else if (startsWith(encoding, "UTF-16")) {
+      keep <- count - count %% 2L
+      if (keep >= 2L) {
+        pair <- as.integer(raw[(keep - 1L):keep])
+        unit <- if (encoding == "UTF-16LE") pair[[1L]] + 256L * pair[[2L]] else pair[[2L]] + 256L * pair[[1L]]
+        if (unit >= 55296L && unit <= 56319L) keep <- keep - 2L
+      }
+    } else {
+      units <- as.integer(raw)
+      leads <- which(units < 128L | units >= 192L)
+      if (length(leads)) {
+        last <- utils::tail(leads, 1L)
+        lead <- units[[last]]
+        needed <- if (lead >= 194L && lead <= 223L) 2L else if (lead >= 224L && lead <= 239L) 3L
+          else if (lead >= 240L && lead <= 244L) 4L else 1L
+        if (count - last + 1L < needed) keep <- last - 1L
+      }
+    }
+  }
+  out <- utils::head(raw, keep)
+  stopifnot("complete prefix must stay within the input" = is.raw(out) && length(out) <= count)
+  out
+}
+
+#' Convert File Bytes with Portable Unicode Converters
+#' @param raw Bytes to decode or re-encode.
+#' @param from,to Explicit input and output encodings.
+#' @return Converted raw bytes, or NULL on error, and a malformed-input flag.
+#' @noRd
+.file_text_convert <- function(raw, from, to = "UTF-8") {
+  stopifnot("file bytes must be raw" = is.raw(raw), "encoding names must be text" = .is_text(from) && .is_text(to))
+  invalid <- FALSE
+  value <- tryCatch(withCallingHandlers(stringi::stri_encode(raw, from = from, to = to,
+    to_raw = TRUE)[[1L]], warning = function(w) {
+      invalid <<- TRUE
+      invokeRestart("muffleWarning")
+    }), error = function(e) NULL)
+  out <- list(bytes = value, invalid = invalid)
+  stopifnot("converted bytes must be raw or absent" = is.null(out$bytes) || is.raw(out$bytes),
+    "malformed-input status must be logical" = .is_flag(out$invalid))
+  out
+}
+
+#' Recognize Conservative BOMless UTF-16 Text
+#' @param raw Bounded bytes without an explicit BOM.
+#' @param truncated Whether the byte budget omitted later content.
+#' @return A UTF-16 encoding name, or NULL when evidence is insufficient.
+#' @noRd
+.file_text_utf16 <- function(raw, truncated) {
+  stopifnot("file bytes must be raw" = is.raw(raw), "truncation flag must be logical" = .is_flag(truncated))
+  pairs <- length(raw) %/% 2L
+  if (pairs < 8L) return(NULL)
+  odd <- raw[seq.int(1L, pairs * 2L, by = 2L)] == as.raw(0L)
+  even <- raw[seq.int(2L, pairs * 2L, by = 2L)] == as.raw(0L)
+  encoding <- if (!any(odd) && mean(even) >= 0.6) "UTF-16LE" else
+    if (!any(even) && mean(odd) >= 0.6) "UTF-16BE" else return(NULL)
+  prefix <- .file_text_prefix(raw, encoding, truncated)
+  converted <- .file_text_convert(prefix, encoding)
+  if (is.null(converted$bytes) || converted$invalid || any(converted$bytes == as.raw(0L))) return(NULL)
+  points <- utf8ToInt(rawToChar(converted$bytes))
+  if (any((points < 32L & !points %in% c(9L, 10L, 13L)) | (points >= 127L & points <= 159L))) return(NULL)
+  restored <- .file_text_convert(converted$bytes, "UTF-8", encoding)
+  out <- if (!restored$invalid && identical(restored$bytes, prefix)) encoding else NULL
+  stopifnot("inferred encoding must be absent or UTF-16" = is.null(out) || out %in% c("UTF-16LE", "UTF-16BE"))
+  out
+}
+
 #' Prepare Safe Text from One File Without Executing It
 #' @param path File to preview.
-#' @param bytes Maximum bytes read.
+#' @param bytes Preview byte budget. One extra byte detects truncation; at least
+#'   four bytes are read to distinguish Unicode byte-order marks.
 #' @param lines Maximum logical lines retained.
-#' @return Plain text, a language hint and a truncation flag.
+#' @return Plain text, language and encoding hints, and a truncation flag.
 #' @noRd
 .file_preview <- function(path, bytes = 65536L, lines = 400L) {
   stopifnot("file must be text" = .is_text(path), "byte and line limits must be positive" =
@@ -38,15 +137,33 @@
   stopifnot("file must exist and must not be a directory" = file.exists(path) && !dir.exists(path))
   connection <- file(path, open = "rb")
   on.exit(close(connection), add = TRUE)
-  raw <- readBin(connection, "raw", n = bytes + 1L)
-  if (any(raw == as.raw(0L))) return(list(lines = "Binary file: text preview is unavailable.", language = "text", truncated = FALSE))
-  text <- iconv(rawToChar(utils::head(raw, bytes)), from = "UTF-8", to = "UTF-8", sub = "\uFFFD")
-  text <- sub("^\ufeff", "", text)
+  # Four bytes distinguish UTF-32 from UTF-16 even for a tiny preview budget.
+  raw <- readBin(connection, "raw", n = max(4, as.double(bytes) + 1))
+  truncated <- length(raw) > bytes
+  format <- .file_text_encoding(raw)
+  payload <- utils::head(raw, bytes)
+  payload <- utils::tail(payload, max(0L, length(payload) - format$bom))
+  if (!format$bom && any(payload == as.raw(0L))) {
+    inferred <- .file_text_utf16(payload, truncated)
+    if (!is.null(inferred)) format$encoding <- inferred
+  }
+  payload <- .file_text_prefix(payload, format$encoding, truncated)
+  converted <- .file_text_convert(payload, format$encoding)
+  binary <- is.null(converted$bytes) || any(converted$bytes == as.raw(0L))
+  text <- if (binary) "" else rawToChar(converted$bytes)
+  points <- if (binary) integer() else utf8ToInt(text)
+  controls <- (points < 32L & !points %in% c(9L, 10L, 12L, 13L, 27L)) | (points >= 127L & points <= 159L)
+  binary <- binary || (sum(controls) >= 2L && mean(controls) > 0.1)
+  if (binary) return(list(lines = paste0("Binary file: text preview is unavailable.",
+    if (!format$bom) " If this is text, save a copy as UTF-8 or UTF-16 with a byte order mark." else ""),
+    language = "text", encoding = format$encoding, truncated = truncated))
   text <- gsub("\r\n?", "\n", text, perl = TRUE)
   parts <- stringi::stri_split_fixed(text, "\n", omit_empty = FALSE)[[1L]]
-  truncated <- length(raw) > bytes || length(parts) > lines
+  truncated <- truncated || length(parts) > lines
   out <- list(lines = .safe_text(utils::head(parts, lines)),
-    language = if (grepl("\\.[Rr]$", path)) "R" else "text", truncated = truncated)
+    language = if (grepl("\\.[Rr]$", path)) "R" else "text", encoding = format$encoding, truncated = truncated)
+  if (converted$invalid) out$lines <- c(out$lines, "", paste0("[Invalid ", format$encoding,
+    " sequences were replaced in this preview; file is unchanged.]"))
   if (truncated) out$lines <- c(out$lines, "", "[Preview truncated; file is unchanged.]")
   stopifnot("preview must be safe text" = is.character(out$lines) && !anyNA(out$lines))
   out

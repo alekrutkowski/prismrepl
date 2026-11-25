@@ -122,10 +122,11 @@
 #' @param envir Evaluation environment.
 #' @param config Console configuration.
 #' @param inventory Optional shared workspace snapshot for this refresh.
+#' @param process_memory Optional resident-byte snapshot shared with the status.
 #' @return A named list of character vectors.
 #' @keywords internal
 #' @noRd
-.session_sidebar <- function(envir, config, inventory = NULL) {
+.session_sidebar <- function(envir, config, inventory = NULL, process_memory = NULL) {
   stopifnot("envir must be an environment" = is.environment(envir),
             "config must be a console configuration" = inherits(config, "prismrepl_config"),
             "inventory must be NULL or a data frame" = is.null(inventory) || is.data.frame(inventory))
@@ -147,8 +148,10 @@
   object_commands <- c(paste0(":view ", vapply(utils::head(objects$name, 16L), .completion_name, character(1L))),
     if (nrow(objects) > 16L) ":objects")
   if (!nrow(objects)) object_commands <- ""
-  workspace <- c(object_lines, ":objects inspect  :rm select")
-  attr(workspace, "commands") <- c(object_commands, ":objects")
+  memory_line <- if ("process_memory" %in% config$status) .process_memory_label(
+    if (is.null(process_memory)) .process_memory() else process_memory) else character()
+  workspace <- c(memory_line, object_lines, ":objects inspect  :rm select")
+  attr(workspace, "commands") <- c(rep("", length(memory_line)), object_commands, ":objects")
   attr(workspace, "hints") <- c(":objects" = "inspect", ":rm" = "select")
   package_lines <- c(packages, ":packages list  :detach select")
   attr(package_lines, "commands") <- c(paste0(":docs ", packages), ":packages")

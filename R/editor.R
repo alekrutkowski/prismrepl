@@ -3,7 +3,8 @@
 #' The enhanced editor uses these defaults. A terminal can reserve shortcuts or
 #' transmit two shortcuts as the same bytes. In particular, Ctrl+Shift+M needs
 #' a terminal with extended keyboard reporting; Alt+M is the portable fallback.
-#' F1 opens this list inside the editor. Escape closes overlays.
+#' F1 opens documentation for the function under the cursor; F2 opens this list.
+#' Escape closes overlays.
 #'
 #' @param config Console configuration whose effective bindings should be shown.
 #' @return A data frame with `key` and `action` columns.
@@ -235,7 +236,7 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
   result <- list(chars = chars, cursor = length(chars), bytes = nchar(text, type = "bytes"),
                  line_count = sum(chars == "\n") + 1L, history_index = length(history) + 1L,
                  draft = text, kill = "", search = NULL, overlay = character(),
-                 completion = NULL, action = "edit", clear = FALSE)
+                 completion = NULL, action = "edit", clear = FALSE, help_request = NULL)
   stopifnot("editor state must have a valid cursor" = result$cursor <= length(result$chars))
   result
 }
@@ -526,6 +527,7 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
             "envir must be an environment" = is.environment(envir),
             "config must be a list" = is.list(config))
   action <- .key_action(event, config)
+  state$help_request <- NULL
   if (identical(event$type, "eof")) state$action <- "eof" else if
     (identical(action, "cancel")) state$action <- "cancel" else if (!is.null(state$search))
       return(.editor_search(state, event, history, config)) else if
@@ -600,6 +602,8 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
           state$search <- list(query = "", index = 1L,
               original = list(text = paste0(state$chars, collapse = ""), cursor = state$cursor))
           state <- .editor_search(state, list(type = "key", key = "", modifiers = character()), history, config)
+        } else if (identical(action, "function_help")) {
+          state <- .editor_request_help(state)
         } else if (identical(action, "help")) {
           keys <- keymap(config)
           state$overlay <- if (length(state$overlay)) character() else
@@ -670,6 +674,7 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
   last <- min(length(starts), first + budget - 1L)
   rows <- seq.int(first, last)
   source <- paste0(state$chars, collapse = "")
+  focus <- .editor_pair_focus(state, source, config)
   cache <- config$highlight_cache
   cache_key <- list(source, first, last, config$theme, config$color, config$rainbow)
   if (is.environment(cache) && identical(cache$key, cache_key)) {
@@ -700,7 +705,15 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
     role <- if (row == 1L) "prompt" else "continuation"
     painted <- if (isTRUE(config$color) && nzchar(config$theme$colors[[role]]))
       paste0("\033[", config$theme$colors[[role]], "m", prefix, "\033[0m") else prefix
-    list(text = paste0(painted, code), column = prefix_width + slice$column)
+    visible_first <- starts[[row]] + slice$first
+    visible_last <- starts[[row]] + slice$last
+    painted <- paste0(painted, code)
+    if (nrow(focus) && visible_last >= visible_first &&
+        any(focus[, 1L] <= visible_last & focus[, 2L] >= visible_first))
+      painted <- .editor_pair_row(painted, focus, visible_first, visible_last,
+        length(.editor_graphemes(prefix)) + as.integer(slice$left), config,
+        chars = state$chars[seq.int(visible_first, visible_last)])
+    list(text = painted, column = prefix_width + slice$column)
   })
   extra <- if (max_extra) utils::head(extras, max_extra) else character()
   if (length(extras) > max_extra && max_extra > 0L)
@@ -712,9 +725,10 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
   if (last < length(starts) && length(extra)) extra[[1L]] <- .editor_slice(
     .editor_graphemes(paste0("v More input below. ", extra[[1L]])), max(1L, width - 1L))$text
   footer <- if (footer_rows) .footer_hints(stats::setNames(
-    c("run", "newline", "complete", "shortcuts", "commands"),
+    c("run", "newline", "complete", "function help", "shortcuts", "commands"),
     c(.editor_key_label(config, "submit", "Enter"), .editor_key_label(config, "newline", "Ctrl+J"),
-      .editor_key_label(config, "complete", "Tab"), .editor_key_label(config, "help", "F1"), ":help")),
+      .editor_key_label(config, "complete", "Tab"), .editor_key_label(config, "function_help", "F1"),
+      .editor_key_label(config, "help", "F2"), ":help")),
     config, max(1L, width - 1L)) else character()
   result <- list(lines = c(vapply(rendered, `[[`, character(1), "text"), extra, footer),
                  cursor_row = line$row - first,
@@ -885,6 +899,16 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
         paste0(style_text(prefix, role, config$theme, config$color), code)
       }, character(1))
     })
+  focus <- .editor_pair_focus(state, geometry$source, config)
+  if (nrow(focus)) rendered <- vapply(seq_along(visible), function(i) {
+    row <- visible[[i]]
+    if (isTRUE(row$oversized) || !any(focus[, 1L] <= row$to & focus[, 2L] > row$from))
+      return(rendered[[i]])
+    prefix <- if (i == 1L && first > 1L && !row$wrapped)
+      .screen_fit("^ ", row$prefix_width) else row$prefix
+    .editor_pair_row(rendered[[i]], focus, row$from + 1L, row$to,
+      length(.editor_graphemes(prefix)), config, positions = geometry$safe_positions)
+  }, character(1))
   extras <- if (extra_count) .screen_cached(config$highlight_cache, "editor_overlays",
     list(state$overlay, extra_count, width), {
       text <- utils::head(state$overlay, extra_count)
@@ -1008,7 +1032,7 @@ read_expression <- function(prompt = "r> ", continuation = "+  ", history = char
             "config must be a list" = is.list(config))
   defaults <- list(theme = repl_theme(), color = TRUE, unicode = TRUE, pipe = "|>",
                    max_paste = 100000L, max_lines = 2000L, mouse = TRUE, synchronize = FALSE,
-                   rainbow = TRUE, autopair = TRUE)
+                   rainbow = TRUE, autopair = TRUE, match_pairs = TRUE)
   config_class <- class(config)
   configured_theme <- config$theme
   config <- utils::modifyList(defaults, config)
@@ -1057,6 +1081,10 @@ read_expression <- function(prompt = "r> ", continuation = "+  ", history = char
     action <- .key_action(event, config)
     if (identical(event$type, "resize")) {
       size <- pmax(term_size(), c(width = 1L, height = 1L))
+    } else if (identical(action, "help")) {
+      state <- .editor_open_shortcuts(state, config, handle, alternate = !full)
+      size <- pmax(term_size(), c(width = 1L, height = 1L))
+      editing_event <- TRUE
     } else if (full && (action %in% c("scroll_up", "scroll_down", "scroll_line_up", "scroll_line_down") ||
                          (identical(event$type, "mouse") && event$key %in% c("wheelup", "wheeldown")))) {
       amount <- if (action %in% c("scroll_up", "scroll_down"))
@@ -1078,12 +1106,20 @@ read_expression <- function(prompt = "r> ", continuation = "+  ", history = char
       state <- .editor_step(state, event, history, envir, config)
       editing_event <- TRUE
     }
+    if (!is.null(state$help_request)) {
+      state <- .editor_open_help(state, config, handle, alternate = !full)
+      size <- pmax(term_size(), c(width = 1L, height = 1L))
+      editing_event <- TRUE
+    }
     if (!identical(state$action, "edit")) break
     next_frame <- if (editing_event || identical(event$type, "resize"))
       .editor_display_frame(state, size, prompt, continuation, status, config) else frame
     if (full) {
       if (editing_event) config$screen$mode <- if (!is.null(state$search)) "SEARCH" else "EDIT"
-      if (state$clear) screen_invalidate(config$screen)
+      if (state$clear) {
+        screen_invalidate(config$screen)
+        config$screen$mouse_selection <- .mouse_state()
+      }
       screen_render(config$screen, next_frame, config, size)
     } else .editor_draw(next_frame, frame, state$clear, config)
     state$clear <- FALSE

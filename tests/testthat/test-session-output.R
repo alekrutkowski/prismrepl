@@ -1,5 +1,5 @@
 test_that("fullscreen captures print output and preserves condition ordering", {
-  cfg <- repl_config(color = TRUE, color_depth = 16777216L, hyperlinks = FALSE)
+  cfg <- repl_config(settings_file = NULL, color = TRUE, color_depth = 16777216L, hyperlinks = FALSE)
   cfg$screen <- screen_state(max_lines = 200L)
   before <- sink.number()
   printed <- capture.output(result <- .with_screen_output(function(local) evaluate_r(
@@ -18,7 +18,7 @@ test_that("fullscreen captures print output and preserves condition ordering", {
 })
 
 test_that("fullscreen capture restores sinks after errors and bounds retained output", {
-  cfg <- repl_config(color = FALSE)
+  cfg <- repl_config(settings_file = NULL, color = FALSE)
   cfg$screen <- screen_state(max_lines = 30L)
   before <- sink.number()
   expect_error(.with_screen_output(function(local) stop("unexpected"), cfg, paint = FALSE), "unexpected")
@@ -32,7 +32,7 @@ test_that("fullscreen capture restores sinks after errors and bounds retained ou
 })
 
 test_that("captured terminal controls cannot clear or overwrite the TUI", {
-  cfg <- repl_config(color = TRUE)
+  cfg <- repl_config(settings_file = NULL, color = TRUE)
   cfg$screen <- screen_state()
   .with_screen_output(function(local) cat("hello\033[2J\033]52;c;payload\007world\n"),
                       cfg, paint = FALSE)
@@ -46,7 +46,7 @@ test_that("sidebar inventory never forces deferred or active bindings", {
   env$table <- data.frame(x = 1:3, y = 4:6)
   delayedAssign("later", stop("must not force"), assign.env = env)
   makeActiveBinding("active", function() stop("must not invoke"), env)
-  cfg <- repl_config(sidebar = TRUE)
+  cfg <- repl_config(settings_file = NULL, sidebar = TRUE)
   sidebar <- .session_sidebar(env, cfg)
   expect_true(any(grepl("3 x 2", sidebar$WORKSPACE, fixed = TRUE)))
   expect_true(any(grepl("promise", sidebar$WORKSPACE, fixed = TRUE)))

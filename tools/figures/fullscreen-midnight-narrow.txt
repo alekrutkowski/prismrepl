@@ -1,4 +1,4 @@
- PRISM REPL  0.5.1                                           ERROR 
+ PRISM REPL  0.6.4                                           ERROR 
  SESSION  live ────────────────────────────────────────────────────
  1          5.1         3.5          1.4         0.2  setosa       
  2          4.9          NA          1.4         0.2  setosa       
@@ -25,6 +25,6 @@
  r> flowers |>                                                     
  +    subset(!is.na(Sepal.Width)) |>                               
  +    transform(ratio = Sepal.Length / Sepal.Width) |>             
- +    head(6L)  # Tab completes names; F1 opens shortcuts          
- objects: 5  |  packages: 7 attached  |  objects ~23.8 Kb          
- Enter run  Tab complete  Ctrl+R history  F1 keys                  
+ +    head(6L)  # Tab completes names; F1 opens function help      
+ R RAM: 105.1 MiB  |  objects: 5  |  packages: 7 attached  |  objec
+ Enter run  Tab complete  Ctrl+R history  F1 docs  F2 keys         

@@ -78,7 +78,7 @@ test_that("viewer navigation honors remapped and disabled common bindings", {
   help <- .panel_help(cfg, 90L, FALSE, TRUE)
   expect_true(any(grepl("F4", help, fixed = TRUE)))
   expect_false(any(grepl("Up/Down", help, fixed = TRUE)))
-  expect_match(.viewer_caption(c("very long optional detail", "F1 keys", "q close"), 20L),
+  expect_match(.viewer_caption(c("very long optional detail", "F2 keys", "q close"), 20L),
                "q close$", perl = TRUE)
 })
 test_that("blank-space clicks do not select a last batch row", {

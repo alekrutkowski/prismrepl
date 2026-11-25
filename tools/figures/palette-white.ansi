@@ -13,7 +13,8 @@
 [38;2;22;24;29;48;2;255;255;255m  :rm [NAME ...]  (:r)            Remove named objects, or select a batch interactively.                                           [0m
 [38;2;22;24;29;48;2;255;255;255m  [Packages]                                                                                                                       [0m
 [38;2;22;24;29;48;2;255;255;255m  :packages  (:p)                 List attached packages and loaded namespaces.                                                    [0m
-[1;38;2;22;24;29;48;2;219;234;254m> :attach PACKAGE  (:a)           Attach an installed package with library(); Tab completes installed package names.               [0m
+[1;38;2;22;24;29;48;2;219;234;254m> :attach PACKAGE ...  (:a)       Attach installed packages in order with library(); stop at the first error. Tab completes each   [0m
+[1;38;2;22;24;29;48;2;219;234;254m>                                 package name.                                                                                    [0m
 [38;2;22;24;29;48;2;255;255;255m  :detach [PACKAGE ...]  (:de)    Detach named packages, or select a batch; retain namespaces.                                     [0m
 [38;2;22;24;29;48;2;255;255;255m  :install PACKAGE ...  (:i)      Install packages from the configured repositories; Tab uses a cached CRAN index. --refresh       [0m
 [38;2;22;24;29;48;2;255;255;255m                                  refreshes that index.                                                                            [0m
@@ -24,13 +25,12 @@
 [38;2;22;24;29;48;2;255;255;255m  :cd [PATH]  (:c)                Change working directory; with no path, show the current directory like :pwd.                    [0m
 [38;2;22;24;29;48;2;255;255;255m  :pwd  (:pw)                     Show the current working directory.                                                              [0m
 [38;2;22;24;29;48;2;255;255;255m  :git  (:g)                      Show tracked-file Git status for the current directory.                                          [0m
+[38;2;22;24;29;48;2;255;255;255m  :shell COMMAND  (:sh)           Run a system shell command without an R string; preserve shell quotes, pipes and redirects.      [0m
 [38;2;22;24;29;48;2;255;255;255m  [History and errors]                                                                                                             [0m
 [38;2;22;24;29;48;2;255;255;255m  :history [TEXT]  (:hi)          Browse submitted R expressions and colon commands; optionally filter literal text.               [0m
 [38;2;22;24;29;48;2;255;255;255m  :recall NUMBER  (:re)           Place a numbered history entry in the input for editing and approval.                            [0m
 [38;2;22;24;29;48;2;255;255;255m  :trace  (:tr)                   Show the most recent error's captured call trace.                                                [0m
 [38;2;22;24;29;48;2;255;255;255m  :explain [copy] [minimal]       Show an AI explanation link, or copy its prompt; minimal omits source and call trace.            [0m
 [38;2;22;24;29;48;2;255;255;255m  (:e)                                                                                                                             [0m
-[38;2;22;24;29;48;2;255;255;255m  [Appearance]                                                                                                                     [0m
-[38;2;22;24;29;48;2;255;255;255m  :theme [NAME|auto]  (:t)        Choose a theme or desktop appearance; Enter applies, saves, and repaints.                        [0m
-[38;2;82;88;102;48;2;241;243;245m 37/37 commands. Selection fills the input; review arguments and press Enter there to run.                                         [0m
+[38;2;82;88;102;48;2;241;243;245m 39/39 commands. Selection fills the input; review arguments and press Enter there to run.                                         [0m
 [38;2;82;88;102;48;2;241;243;245m [1;38;2;18;72;189mEnter[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mstage command[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mUp/Down[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mmove[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mTab[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245msort[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mCtrl+U[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mclear[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mEscape[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mcancel[0m[38;2;82;88;102;48;2;241;243;245m]8;;\[0m[38;2;82;88;102;48;2;241;243;245m                                                          ]8;;\[0m[38;2;82;88;102;48;2;241;243;245m[0m

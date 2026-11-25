@@ -11,5 +11,6 @@
 ^tools$
 ^dist$
 ^release-assets$
+^check$
 ^prismrepl.*\.(tar\.gz|zip|tgz)$
 ^.*\.Rcheck$

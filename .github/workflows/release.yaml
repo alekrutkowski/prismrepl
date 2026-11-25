@@ -4,13 +4,19 @@ on:
   push:
     tags: ['v[0-9]*']
   workflow_dispatch:
+    inputs:
+      r_version:
+        description: R version for the six downloadable native builds
+        type: choice
+        default: release
+        options: [release, '4.5', '4.5.0']
 
 permissions:
   contents: read
 
 jobs:
   binaries:
-    name: ${{ matrix.os }} / ${{ matrix.arch }}
+    name: ${{ matrix.os }} / ${{ matrix.arch }} / R ${{ inputs.r_version || 'release' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -33,7 +39,7 @@ jobs:
           persist-credentials: false
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: release
+          r-version: ${{ inputs.r_version || 'release' }}
           use-public-rspm: true
           Ncpus: '2'
       - name: Verify native R architecture
@@ -42,12 +48,20 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
+      - name: Verify preference isolation for the complete test suite
+        run: Rscript tools/test-settings-isolation.R
       - uses: r-lib/actions/check-r-package@v2
         with:
           args: 'c("--as-cran", "--no-manual")'
           error-on: '"warning"'
-      - name: Compile and package this platform
-        run: Rscript tools/build-release.R
+          check-dir: '"check"'
+      - name: Validate source, compile and package this platform
+        shell: Rscript {0}
+        run: |
+          description <- read.dcf("DESCRIPTION")
+          Sys.setenv(PRISMREPL_SOURCE_ARCHIVE = file.path("check",
+            paste0(description[1L, "Package"], "_", description[1L, "Version"], ".tar.gz")))
+          source("tools/build-release.R")
       - name: Verify the Windows console before release
         if: runner.os == 'Windows'
         shell: pwsh
@@ -56,16 +70,26 @@ jobs:
         run: |
           R CMD INSTALL .
           if ($LASTEXITCODE -ne 0) { throw 'Package installation failed' }
+          Rscript tools/test-appearance-independence.R
+          if ($LASTEXITCODE -ne 0) { throw 'Appearance independence verification failed' }
+          Rscript tools/test-cran-worker.R
+          if ($LASTEXITCODE -ne 0) { throw 'Completion worker verification failed' }
           ./tools/windows-console-smoke.ps1
       - name: Verify the full-screen terminal before release
         if: runner.os != 'Windows'
         run: |
+          python3 tools/native/pty-termios.py
+          python3 tools/test-pty-options-ready.py
           R CMD INSTALL .
+          Rscript tools/test-appearance-independence.R
+          Rscript tools/test-cran-worker.R
           python3 tools/pty-fullscreen.py
           python3 tools/pty-explorer.py
           python3 tools/pty-commands.py
+          python3 tools/pty-shell.py
           python3 tools/pty-options.py
           python3 tools/pty-docs.py
+          python3 tools/pty-context-help.py
           python3 tools/pty-files.py
           python3 tools/native/pty-exit.py
           python3 tools/native/pty-io.py

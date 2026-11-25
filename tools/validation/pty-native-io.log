@@ -1,1 +1,0 @@
-PASS: buffered UTF-8 writes, sink bypass, synchronized framing, cached/owned cursor tint and restoration, mouse press/drag/release/wheel, modifiers, Ctrl+J, bracketed paste, opt-out, exact terminal restoration; frames=250 elapsed=0.012s

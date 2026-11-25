@@ -60,7 +60,7 @@ test_that("package aliases build quoted literal calls instead of executable stri
   expect_equal(calls[[2L]][[2L]], c("data.table", "cli", "utf8"))
   expect_error(.repl_command(":install cli;stop('bad')", state, env), "package names")
   expect_error(.repl_command(":installgh ../bad", state, env), "user/repo")
-  expect_error(.repl_command(":attach", state, env), "number")
+  expect_error(.repl_command(":attach", state, env), "use :attach")
 })
 
 test_that("commands join multiline expression history only when submitted", {
@@ -92,9 +92,38 @@ test_that("command completion knows aliases packages and space-containing paths"
   path <- file.path(directory, "a  script.R")
   writeLines("1", path)
   result <- complete_r(paste0(":source ", directory, "/a"))
-  expect_identical(result$candidates, path)
+  expect_length(result$candidates, 1L)
+  expect_identical(normalizePath(result$candidates, winslash = "/", mustWork = TRUE),
+                   normalizePath(path, winslash = "/", mustWork = TRUE))
+  expect_identical(basename(result$candidates), "a  script.R")
+  expect_identical(.command_parse(paste(":source", result$candidates))$args,
+                   result$candidates)
   expect_identical(result$start, nchar(":source "))
   expect_null(.complete_command("x <- 1", 6L, .GlobalEnv, 20L))
+})
+
+test_that("literal Windows path completion preserves spaces without R escaping", {
+  complete <- .complete_command_path
+  environment(complete) <- list2env(list(
+    .Platform = list(OS.type = "windows"),
+    list.files = function(path, ...) {
+      expect_true(path %in% c("D:/folder with  spaces/", "//server/share name/"))
+      c("a  script.R", "unrelated.R")
+    },
+    dir.exists = function(path) rep(FALSE, length(path))), parent = environment(complete))
+  inputs <- c("D:\\folder with  spaces\\a", "D:\\folder with  spaces/a",
+              "\\\\server\\share name/a")
+  expected <- c(rep("D:\\folder with  spaces\\a  script.R", 2L),
+                "\\\\server\\share name\\a  script.R")
+  lapply(seq_along(inputs), function(i) {
+    text <- paste(":source", inputs[[i]])
+    result <- complete(text, nchar(":source "), nchar(text), FALSE, 20L)
+    expect_identical(result$candidates, expected[[i]])
+    expect_identical(result$start, nchar(":source "))
+    expect_identical(result$end, nchar(text))
+    expect_identical(.command_parse(paste(":source", result$candidates))$args,
+                     expected[[i]])
+  })
 })
 
 test_that("CRAN cache reads bounded data and rejects another repository", {

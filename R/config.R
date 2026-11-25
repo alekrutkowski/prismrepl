@@ -13,8 +13,11 @@
 #' @param unicode Logical; allow Unicode decorations. Input remains Unicode-aware.
 #' @param history_file Optional history file. `NULL` keeps history in memory only.
 #' @param history_limit Maximum number of history entries retained.
-#' @param status Status fields: `directory`, `git`, `objects`, `packages`, `memory`.
-#'   Memory is the sum of approximate object sizes, not process resident memory.
+#' @param status Status fields: `process_memory`, `directory`, `git`, `objects`,
+#'   `packages`, `memory`. `process_memory` is enabled by default and reports the
+#'   current R process's resident RAM from the operating system, including native
+#'   allocations and loaded libraries. `memory` separately sums approximate
+#'   workspace object sizes. Neither measurement forces garbage collection.
 #' @param preview Use bounded previews for ordinary objects (`"auto"`) or ordinary
 #'   print methods (`"print"`). Custom S3/S4 classes retain their print methods.
 #' @param rows Maximum rows shown in an automatic preview.
@@ -52,6 +55,9 @@
 #' @param autopair Automatically insert matching delimiters while typing R code.
 #'   Paste, completion, recalled history and colon commands remain literal.
 #'   Defaults to `TRUE`.
+#' @param match_pairs Highlight both endpoints when the cursor is on or just
+#'   after a matching bracket or quote, including compound raw-string delimiters.
+#'   Defaults to `TRUE`, independently of `rainbow` and `autopair`.
 #' @param ai_provider Browser destination for error explanations; see
 #'   [repl_ai_providers()]. Defaults to `"mistral"`. No API key is needed.
 #' @param ai_url Optional HTTPS template containing exactly one `{prompt}` for
@@ -63,7 +69,7 @@
 #' cfg$history_file
 repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
                         unicode = TRUE, history_file = NULL, history_limit = 1000L,
-                        status = c("directory", "git"), preview = "auto", rows = 12L,
+                        status = c("process_memory", "directory", "git"), preview = "auto", rows = 12L,
                         width = NULL, hyperlinks = TRUE, confirm = TRUE,
                         max_paste = 100000L, max_lines = 2000L, trace_limit = 12L,
                         link_context = TRUE, ui = "auto", sidebar = TRUE,
@@ -71,7 +77,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
                         color_depth = NULL, settings_file = repl_settings_file(),
                         persist = TRUE, keybindings = NULL, mouse = TRUE,
                         synchronize = FALSE, rainbow = TRUE, autopair = TRUE,
-                        ai_provider = "mistral", ai_url = NULL) {
+                        ai_provider = "mistral", ai_url = NULL, match_pairs = TRUE) {
   stopifnot("settings_file must be NULL or a nonempty path" = is.null(settings_file) || .is_text(settings_file),
             "persist must be logical" = .is_flag(persist),
             "mouse must be logical" = .is_flag(mouse),
@@ -84,6 +90,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
   if (missing(mouse) && !is.null(preferences$mouse)) mouse <- preferences$mouse
   if (missing(rainbow) && !is.null(preferences$rainbow)) rainbow <- preferences$rainbow
   if (missing(autopair) && !is.null(preferences$autopair)) autopair <- preferences$autopair
+  if (missing(match_pairs) && !is.null(preferences$match_pairs)) match_pairs <- preferences$match_pairs
   if (missing(ai_provider) && !is.null(preferences$ai_provider)) ai_provider <- preferences$ai_provider
   if (missing(ai_url) && !is.null(preferences$ai_url)) ai_url <- preferences$ai_url
   .ai_target(ai_provider, ai_url)
@@ -97,7 +104,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
               .is_text(history_file),
             "history_limit must be a positive integer" = .is_count(history_limit, 1L),
             "status contains an unknown field" = is.character(status) && !anyNA(status) &&
-              all(status %in% c("directory", "git", "objects", "packages", "memory")),
+              all(status %in% c("process_memory", "directory", "git", "objects", "packages", "memory")),
             "preview must be 'auto' or 'print'" = length(preview) == 1L &&
               preview %in% c("auto", "print"),
             "rows must be a positive integer" = .is_count(rows, 1L),
@@ -111,6 +118,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
             "link_context must be a logical scalar" = .is_flag(link_context),
             "rainbow must be a logical scalar" = .is_flag(rainbow),
             "autopair must be a logical scalar" = .is_flag(autopair),
+            "match_pairs must be a logical scalar" = .is_flag(match_pairs),
             "ui must be auto, fullscreen, or inline" = .is_text(ui) &&
               ui %in% c("auto", "fullscreen", "inline"),
             "sidebar must be a logical scalar" = .is_flag(sidebar),
@@ -121,7 +129,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
   if (is.character(theme)) theme <- repl_theme(theme)
   stopifnot("theme must be a valid theme" = is.list(theme) && .is_text(theme$name) &&
               is.character(theme$colors) && !anyNA(theme$colors) &&
-              all(names(repl_theme()$colors) %in% names(theme$colors)) &&
+              all(setdiff(names(repl_theme()$colors), "pair_match") %in% names(theme$colors)) &&
               all(grepl("^[0-9;]*$", theme$colors)))
   color_auto <- is.null(color)
   color_depth_auto <- is.null(color_depth)
@@ -142,6 +150,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
     settings_file = if (is.null(settings_file)) NULL else path.expand(settings_file),
     persist = persist, keybindings = keybindings, key_lookup = .key_lookup(keybindings),
     mouse = mouse, synchronize = synchronize, rainbow = rainbow, autopair = autopair,
+    match_pairs = match_pairs,
     ai_provider = ai_provider, ai_url = ai_url, theme_initial = theme_initial),
     class = c("prismrepl_config", "list"))
   stopifnot("configuration output must be a named list" = is.list(out) &&
@@ -228,7 +237,14 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
 
 #' @keywords internal
 #' @noRd
+.onLoad <- function(libname, pkgname) {
+  .register_cran_cleanup()
+}
+
+#' @keywords internal
+#' @noRd
 .onUnload <- function(libpath) {
+  try(.cleanup_cran_workers(wait = TRUE), silent = TRUE)
   try(term_reset(output = TRUE), silent = TRUE)
   library.dynam.unload("prismrepl", libpath)
 }

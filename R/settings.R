@@ -22,7 +22,7 @@ repl_settings_file <- function() {
 #' With no changes, read the saved preferences. Supplying a theme, key bindings,
 #' pipe, mouse, editing or AI-provider preference validates and saves the change.
 #' Console commands `:theme`, `:bind`, `:unbind`, `:pipe`, `:mouse`, `:rainbow`,
-#' `:autopair` and `:ai` use the same file.
+#' `:autopair`, `:match` and `:ai` use the same file.
 #' Explicit arguments to [repl_config()] override saved values for that session.
 #' Use `repl_config(settings_file = NULL)` for a fully temporary configuration,
 #' or `persist = FALSE` to read preferences without saving console changes.
@@ -41,6 +41,8 @@ repl_settings_file <- function() {
 #' @param reset Logical; reset saved preferences before applying any changes.
 #' @param rainbow Optional logical preference for matching delimiter colors.
 #' @param autopair Optional logical preference for automatic delimiter insertion.
+#' @param match_pairs Optional logical preference for highlighting the matching
+#'   bracket or quote pair at the cursor, including compound raw-string quotes.
 #' @param ai_provider Optional provider identifier from [repl_ai_providers()],
 #'   or `"custom"` with an `ai_url` template.
 #' @param ai_url Optional HTTPS URL template containing exactly one `{prompt}`.
@@ -55,7 +57,7 @@ repl_settings_file <- function() {
 repl_settings <- function(theme = NULL, keybindings = NULL, pipe = NULL,
                          mouse = NULL, file = repl_settings_file(), reset = FALSE,
                          rainbow = NULL, autopair = NULL, ai_provider = NULL,
-                         ai_url = NULL) {
+                         ai_url = NULL, match_pairs = NULL) {
   stopifnot("file must be a nonempty path" = .is_text(file),
             "reset must be logical" = .is_flag(reset),
             "theme must be NULL or a built-in theme" = is.null(theme) ||
@@ -64,7 +66,8 @@ repl_settings <- function(theme = NULL, keybindings = NULL, pipe = NULL,
               (.is_text(pipe) && pipe %in% c("|>", "%>%")),
             "mouse must be NULL or logical" = is.null(mouse) || .is_flag(mouse),
             "rainbow must be NULL or logical" = is.null(rainbow) || .is_flag(rainbow),
-            "autopair must be NULL or logical" = is.null(autopair) || .is_flag(autopair))
+            "autopair must be NULL or logical" = is.null(autopair) || .is_flag(autopair),
+            "match_pairs must be NULL or logical" = is.null(match_pairs) || .is_flag(match_pairs))
   bindings <- if (is.null(keybindings)) NULL else repl_keybindings(keybindings)
   out <- if (reset) list() else .read_preferences(file, warn = FALSE, strict = TRUE)
   if (!is.null(theme)) out$theme <- theme
@@ -72,13 +75,14 @@ repl_settings <- function(theme = NULL, keybindings = NULL, pipe = NULL,
   if (!is.null(mouse)) out$mouse <- mouse
   if (!is.null(rainbow)) out$rainbow <- rainbow
   if (!is.null(autopair)) out$autopair <- autopair
+  if (!is.null(match_pairs)) out$match_pairs <- match_pairs
   if (!is.null(ai_provider)) out$ai_provider <- ai_provider
   if (!is.null(ai_url)) out$ai_url <- ai_url
   .ai_target(if (is.null(out$ai_provider)) "mistral" else out$ai_provider, out$ai_url)
   if (!is.null(bindings)) out$keybindings <- .merge_keybindings(
     if (is.null(out$keybindings)) .default_keybindings() else out$keybindings, keybindings)
   if (reset || !all(vapply(list(theme, keybindings, pipe, mouse, rainbow, autopair,
-                               ai_provider, ai_url), is.null, logical(1))))
+                               ai_provider, ai_url, match_pairs), is.null, logical(1))))
     .write_preferences(out, file)
   stopifnot("preferences must be a named list or an empty list" = is.list(out) &&
               (!length(out) || !is.null(names(out))))
@@ -121,7 +125,7 @@ repl_keybindings <- function(overrides = NULL) {
   line_start = "Home", line_end = "End", buffer_start = c("Ctrl+A", "Ctrl+Home"),
   buffer_end = c("Ctrl+E", "Ctrl+End"), history_previous = "Ctrl+P", history_next = "Ctrl+N",
   up = "Up", down = "Down", kill_start = "Ctrl+U", kill_end = "Ctrl+K",
-  kill_word = "Ctrl+W", yank = "Ctrl+Y", history_search = "Ctrl+R", help = "F1",
+  kill_word = "Ctrl+W", yank = "Ctrl+Y", history_search = "Ctrl+R", function_help = "F1", help = "F2",
   escape = "Escape", redraw = "Ctrl+L", scroll_up = "PageUp", scroll_down = "PageDown",
   scroll_line_up = "Alt+Up", scroll_line_down = "Alt+Down")
 
@@ -246,7 +250,9 @@ repl_keybindings <- function(overrides = NULL) {
     up = "Move up, or recall history at the first line.", down = "Move down, or recall history at the last line.",
     kill_start = "Cut to the start of this line.", kill_end = "Cut to the end of this line.",
     kill_word = "Cut the previous word.", yank = "Paste the last cut text.",
-    history_search = "Search previous expressions; repeat to cycle matches.", help = "Show or hide the shortcut cheatsheet.",
+    history_search = "Search previous expressions; repeat to cycle matches.",
+    function_help = "Open documentation for the function name under the cursor.",
+    help = "Open the shortcut cheatsheet.",
     escape = "Dismiss completion, search or help.", redraw = "Redraw the screen.",
     scroll_up = "Scroll the transcript or viewer up by one page.",
     scroll_down = "Scroll the transcript or viewer down by one page.",
@@ -284,7 +290,7 @@ repl_keybindings <- function(overrides = NULL) {
       stopifnot("invalid saved pipe" = .is_text(fields$Pipe) && fields$Pipe %in% c("|>", "%>%"))
       result$pipe <- fields$Pipe
     }
-    flags <- c(Mouse = "mouse", Rainbow = "rainbow", Autopair = "autopair")
+    flags <- c(Mouse = "mouse", Rainbow = "rainbow", Autopair = "autopair", "Match-Pairs" = "match_pairs")
     supplied <- intersect(names(flags), names(fields))
     values <- lapply(fields[supplied], function(value) {
       stopifnot("invalid saved logical preference" = .is_text(value) && value %in% c("true", "false"))
@@ -299,6 +305,14 @@ repl_keybindings <- function(overrides = NULL) {
       overrides <- lapply(fields[key_fields], function(x)
         if (identical(x, "none")) character() else trimws(strsplit(x, " | ", fixed = TRUE)[[1L]]))
       names(overrides) <- sub("^Key-", "", key_fields)
+      # Older releases saved the whole keymap, including the former F1 default.
+      # Upgrade that default while preserving any explicitly reassigned F2.
+      if (!"function_help" %in% names(overrides) && identical(overrides$help, "F1")) {
+        occupied <- unlist(overrides[setdiff(names(overrides), "help")], use.names = FALSE)
+        occupied <- vapply(occupied, .normalize_chord, character(1L), USE.NAMES = FALSE)
+        overrides$help <- if ("F2" %in% occupied) character() else "F2"
+        overrides$function_help <- "F1"
+      }
       result$keybindings <- repl_keybindings(overrides)
     }
     result
@@ -329,6 +343,7 @@ repl_keybindings <- function(overrides = NULL) {
     if (!is.null(preferences$mouse)) c(Mouse = if (preferences$mouse) "true" else "false"),
     if (!is.null(preferences$rainbow)) c(Rainbow = if (preferences$rainbow) "true" else "false"),
     if (!is.null(preferences$autopair)) c(Autopair = if (preferences$autopair) "true" else "false"),
+    if (!is.null(preferences$match_pairs)) c("Match-Pairs" = if (preferences$match_pairs) "true" else "false"),
     if (!is.null(preferences$ai_provider)) c("AI-Provider" = preferences$ai_provider),
     if (!is.null(preferences$ai_url)) c("AI-URL" = preferences$ai_url))
   if (!is.null(preferences$keybindings)) fields <- c(fields,
@@ -371,7 +386,7 @@ repl_keybindings <- function(overrides = NULL) {
 .persist_preferences <- function(config, fields, reset = FALSE) {
   stopifnot("configuration must be a list" = is.list(config),
             "unknown preference field" = all(fields %in% c("theme", "pipe", "mouse", "keybindings",
-                                                          "rainbow", "autopair", "ai_provider", "ai_url")))
+                                                          "rainbow", "autopair", "match_pairs", "ai_provider", "ai_url")))
   if (!isTRUE(config$persist) || is.null(config$settings_file)) return(invisible(FALSE))
   values <- config[fields]
   if ("theme" %in% fields) values$theme <- config$theme$name

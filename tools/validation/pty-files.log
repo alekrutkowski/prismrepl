@@ -1,4 +1,0 @@
-PASS: crowded-workspace FILES sidebar, staged sidebar clicks, directory navigation,
-blank-row hit testing, right-paste filtering, read-only R preview, spaced paths,
-cancelled/approved cd and source, Ctrl-drag rectangular copy, editable right-paste,
-one alternate screen, no rolling redraw and exact terminal restoration.

@@ -21,5 +21,5 @@
   [17]          0.4                                                                                                                
   [18]          0.3                                                                                                                
   [19]          0.3                                                                                                                
- Preview line 1/150                                                                                                                
- Left parent  Tab view  F1 keys  q close                                                                                           
+ Values 1-150 of 150                                                                                                               
+ Left parent  Tab view  / filter  F2 keys  q close                                                                                 

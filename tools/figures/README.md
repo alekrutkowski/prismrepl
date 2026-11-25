@@ -3,16 +3,22 @@
 These images rasterize the actual ANSI output and grapheme cell widths returned
 by `prismrepl`'s fullscreen, palette, documentation, function-editor and object-explorer compositors. They are reproducible developer figures,
 not screenshots of Windows Terminal or another operating system.
+They use prismrepl 0.6.4 sources and its installed native backend with R 4.6.2
+on Linux; each JSON capture records the package and R versions.
 
 The example evaluates R code in a real session environment. It prints three rows
 of an iris data frame, emits a message and a warning, and raises an error through
 three nested user functions. A four-line expression remains in the editor.
-Workspace information comes from the actual evaluation environment. The wide
-and narrow dark frames use the same transcript, so they also demonstrate
-reformatting after a resize.
+Workspace information comes from the actual evaluation environment. `R RAM`
+shows the current R process's resident memory, sampled once by the native backend
+and shared by the status line and sidebar. The separate `objects ~` value is an
+approximate workspace-object total. These measurements are real and can vary
+between runs. The wide and narrow dark frames use the same transcript and memory
+snapshot, so they also demonstrate reformatting after a resize; the narrow frame
+keeps `R RAM` visible in the status line while hiding the sidebar.
 
-| File                              | Theme    | Terminal columns x rows | Sidebar |
-| --------------------------------- | -------- | ----------------------- | ------- |
+| File                             | Theme    | Terminal columns x rows | Sidebar |
+| -------------------------------- | -------- | ----------------------- | ------- |
 | `fullscreen-midnight-wide.png`    | midnight | 132 x 40                | Visible |
 | `fullscreen-midnight-narrow.png`  | midnight | 68 x 30                 | Hidden  |
 | `fullscreen-paper-wide.png`       | paper    | 132 x 40                | Visible |
@@ -22,8 +28,11 @@ reformatting after a resize.
 | `docs-white.png`                  | white    | 122 x 51                | None    |
 | `editor-midnight.png`             | midnight | 122 x 24                | None    |
 | `explorer-midnight.png`           | midnight | 132 x 25                | None    |
-| `explorer-drilldown-midnight.png` | midnight | 132 x 28                | None    |
+| `explorer-drilldown-midnight.png`  | midnight | 132 x 28                | None    |
 | `explorer-column-midnight.png`    | midnight | 132 x 25                | None    |
+| `explorer-filter-midnight.png`    | midnight | 132 x 25                | None    |
+| `pair-focus-white.png`            | white    | 100 x 24                | Hidden  |
+| `pair-focus-black.png`            | black    | 100 x 24                | Hidden  |
 
 The palette figure uses the current command registry, real logical grouping,
 paired rows and an `:attach` selection. Documentation comes from the installed
@@ -38,6 +47,37 @@ one Enter event to follow a child. The column figure opens `flowers$Petal.Width`
 directly as a numeric preview, retaining the column breadcrumb without element
 children. Modal panels hide the text insertion cursor;
 the editor figures mark its real position with an outline.
+
+The filtered table figure sends real Tab, `/`, and text events to the explorer.
+It searches `datasets::iris` for `VIRGINICA`, matching `virginica` in the Species
+column while retaining original row positions 101 to 150. The active filter,
+matching count, unchanged numeric columns, and column alignment come from the
+actual preview compositor.
+
+## Cursor pair-focus figures
+
+`pair-focus-white` and `pair-focus-black` are produced by
+`export_pair_focus()` in `tools/render-demo.R`, using the current R sources and
+the installed package's native backend. These figures were generated with
+R 4.6.2 on Linux. The terminal geometry is 100 columns by 24 rows and the sidebar
+is disabled, leaving both ends of the multiline raw string visible.
+
+The transcript evaluates `names(flowers)` on the actual `datasets::iris` object
+and an R `message()` stating the two editing preferences. The input buffer is
+original demonstration source. Its opening `r"---{` and closing `}---"` delimiters
+receive the `pair_match` style, including the full dash runs. Ordinary brackets
+and quotes inside the raw string retain their literal-string styling. The actual
+cursor is on the first opening dash and is represented by the renderer's outline.
+
+The examples explicitly set `match_pairs = TRUE` and `rainbow = FALSE`. They
+therefore show the independent cursor-pair feature in both neutral themes.
+Their `.json` metadata records those settings, the exact editor source and cursor
+boundary, the composed screen cursor position, and the original ANSI tokens and
+cell widths. They use `.editor_display_frame()` and `.screen_compose()` directly;
+the exporter checks that the pair role survives composition and every row fits.
+No colours or source characters are added by the PNG renderer.
+
+## Reproduction and source files
 
 Run from the repository root after installing the package and its dependencies:
 

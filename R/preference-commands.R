@@ -1,18 +1,20 @@
 #' Change a Persistent Editing Preference
-#' @param name The rainbow or autopair setting.
+#' @param name The rainbow, autopair or match_pairs setting.
 #' @param args Optional on, off or toggle argument; no argument opens a choice.
 #' @param state Console session environment.
 #' @return NULL invisibly.
 #' @noRd
 .editing_preference_command <- function(name, args, state) {
-  stopifnot("unknown editing preference" = .is_text(name) && name %in% c("rainbow", "autopair"),
+  stopifnot("unknown editing preference" = .is_text(name) && name %in% c("rainbow", "autopair", "match_pairs"),
             "args must be nonmissing text" = is.character(args) && !anyNA(args),
             "state must be an environment" = is.environment(state),
             "use on, off or toggle" = !length(args) ||
               (length(args) == 1L && args %in% c("on", "off", "toggle")))
-  label <- if (name == "rainbow") "Rainbow delimiters" else "Automatic pairing"
+  label <- switch(name, rainbow = "Rainbow delimiters", autopair = "Automatic pairing",
+    match_pairs = "Matching pair at cursor")
   if (!length(args)) {
-    args <- .toggle_choice(name, label, isTRUE(state$config[[name]]), state$config, toggle = TRUE)
+    command <- if (name == "match_pairs") "match" else name
+    args <- .toggle_choice(command, label, isTRUE(state$config[[name]]), state$config, toggle = TRUE)
     if (is.null(args)) return(invisible(NULL))
   }
   stopifnot("chosen editing action must be on, off or toggle" =

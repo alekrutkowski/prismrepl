@@ -252,15 +252,17 @@ preview_object <- function(x, width = 80L, rows = 8L, depth = 2L,
 
 #' Read local Git working-tree information
 #'
-#' Uses Git only when installed, never contacts a remote, and imposes a short
-#' timeout. Dirty status counts tracked files; untracked files are excluded to
-#' keep the prompt responsive. Call after commands and cache the result instead
-#' of calling on every key press.
+#' Uses installed Git to run local `rev-parse` and `status` commands with a
+#' short timeout. It does not invoke fetch, pull, or push. Git may invoke
+#' helpers configured by the repository or user. Dirty status counts tracked
+#' files; untracked files are excluded to keep the prompt responsive. Call
+#' after commands and cache the result instead of calling on every key press.
 #'
 #' @param path Directory to inspect.
 #' @return A list with `available`, `is_repo`, `root`, `branch`, `dirty`, `ahead`,
-#'   `behind`, `tracked_changes`, and `error`. Missing repository metadata is
-#'   represented by empty strings or `NA`.
+#'   `behind`, `tracked_changes`, and `error`. Once a repository is identified,
+#'   `is_repo` and `root` are retained if its status is unavailable. Missing
+#'   metadata is represented by empty strings or `NA`.
 #' @export
 #' @examples
 #' git_info(tempdir())
@@ -282,6 +284,8 @@ git_info <- function(path = getwd()) {
   }
   root <- run(c("rev-parse", "--show-toplevel"))
   if (!length(root)) return(out)
+  out$is_repo <- TRUE
+  out$root <- root[[1L]]
   status <- run(c("--no-optional-locks", "status", "--porcelain=v1", "--branch",
                   "--untracked-files=no"))
   if (!length(status)) {
@@ -297,8 +301,6 @@ git_info <- function(path = getwd()) {
     result <- regmatches(branchline, hit)[[1L]]
     if (length(result) == 2L) as.integer(result[[2L]]) else 0L
   }
-  out$is_repo <- TRUE
-  out$root <- root[[1L]]
   out$branch <- branch
   out$dirty <- length(changes) > 0L
   out$ahead <- count("ahead")

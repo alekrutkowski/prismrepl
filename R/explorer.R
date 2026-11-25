@@ -225,7 +225,7 @@
 .explorer_state <- function(x, label = "object", limit = 200L, filter = "", sizes = FALSE) {
   stopifnot("label must be text" = .is_text(label), "limit must be positive" = .is_count(limit, 1L))
   out <- list(stack = list(.explorer_node(x, label, limit, filter, sizes)), searching = FALSE,
-    search_before = "", status = "", quit = FALSE, help = FALSE, help_top = 1L,
+    search_before = list(), status = "", quit = FALSE, help = FALSE, help_top = 1L,
     last_click = NULL)
   stopifnot("explorer must have one root and remain open" = length(out$stack) == 1L && !out$quit)
   out
@@ -394,65 +394,54 @@
 #' @param x An object.
 #' @param width Content width.
 #' @param rows Preview budget.
-#' @param offset Number of atomic vector values before the current batch.
+#' @param offset Number of matching values before the current batch.
+#' @param selection Optional cached preview selection.
+#' @param query Literal value filter, or an empty string.
 #' @return Plain preview lines.
 #' @noRd
-.explorer_preview <- function(x, width, rows, offset = 0L) {
+.explorer_preview <- function(x, width, rows, offset = 0L, selection = NULL, query = "") {
   stopifnot("width must be positive" = .is_count(width, 1L), "rows must be positive" = .is_count(rows, 1L),
-            "offset must be nonnegative" = .is_count(offset, 0L))
-  raw <- .explorer_raw(x)
-  dims <- attr(x, "dim", exact = TRUE)
-  dataframe <- is.list(x) && !isS4(x) && inherits(x, "data.frame")
-  if (dataframe) dims <- c(length(attr(x, "row.names", exact = TRUE)), length(raw))
-  out <- if (!isS4(x) && (dataframe || (is.atomic(raw) && length(dims) >= 2L))) {
-    nr <- min(rows, dims[[1L]])
-    nc <- min(8L, dims[[2L]], max(1L, (width - 6L) %/% 10L))
-    colnames <- if (dataframe) attr(x, "names", exact = TRUE) else {
-      dn <- attr(x, "dimnames", exact = TRUE)
-      if (length(dn) >= 2L) dn[[2L]] else NULL
+    "offset must be nonnegative" = .is_count(offset, 0L),
+    "query must be one string" = is.character(query) && length(query) == 1L && !is.na(query))
+  if (is.null(selection)) selection <- .explorer_preview_load(list(view = "preview", value = x,
+    limit = rows, offset = offset, query = query, cache = new.env(parent = emptyenv())))
+  out <- if (!is.null(selection) && selection$spec$kind == "table") {
+    .explorer_preview_table(selection, width)
+  } else if (!is.null(selection)) {
+    spec <- selection$spec
+    indices <- selection$indices
+    if (!length(indices) && nzchar(query)) "(No matching values)" else if (spec$count <= 1L) {
+      value <- if (!is.null(x) && !spec$count) paste0(typeof(spec$raw), "(0)") else .explorer_brief(x)
+      c(value, "", "Atomic value: no further children.")
+    } else {
+      labels <- paste0("[", formatC(indices, format = "f", digits = 0L, width = 1L), "]")
+      if (!is.null(spec$names)) {
+        names <- spec$names[indices]
+        names[is.na(names)] <- "<NA>"
+        labels <- paste(labels, .explorer_text(names))
+      }
+      values <- .explorer_preview_column(spec, 1L, indices)
+      c(.table_format(data.frame(index = labels, value = values, stringsAsFactors = FALSE), width)$lines,
+        if (selection$matched > rows) paste0("Elements ", selection$offset + 1L, "-",
+          selection$offset + length(indices), " of ", selection$matched,
+          ". Use [ / ] for another preview batch."))
     }
-    labels <- if (is.null(colnames)) paste0("V", seq_len(nc)) else .explorer_text(colnames[seq_len(nc)])
-    cell_width <- max(4L, (width - 6L) %/% max(1L, nc) - 1L)
-    values <- lapply(seq_len(nc), function(j) {
-      template <- if (dataframe) .explorer_template(raw[[j]]) else .explorer_template(x)
-      vapply(seq_len(nr), function(i) {
-      value <- tryCatch(if (dataframe) {
-        column <- .explorer_raw(raw[[j]])
-        if (isS4(column) || is.environment(column)) NULL else column[[i]]
-      } else raw[[(j - 1L) * dims[[1L]] + i]], error = function(e) NULL)
-      .explorer_brief(.explorer_restore(value, template), 1L)
-    }, character(1L)) })
-    heading <- paste0("      ", paste(.explorer_fit(labels, cell_width), collapse = " "))
-    body <- vapply(seq_len(nr), function(i) paste0(sprintf("%5d ", i),
-      paste(vapply(values, function(column) .explorer_fit(column[[i]], cell_width), character(1L)), collapse = " ")), character(1L))
-    c(heading, body, paste0("Showing ", nr, " of ", dims[[1L]], " rows; ", nc, " of ", dims[[2L]], " columns."))
-  } else if (is.function(x)) {
-    deparse(x, width.cutoff = max(20L, min(500L, width)), nlines = rows)
-  } else if (.explorer_leaf(x) && length(raw) <= 1L) {
-    value <- if (!is.null(x) && !length(raw)) paste0(typeof(raw), "(0)") else .explorer_brief(x)
-    c(value, "", "Atomic value: no further children.")
-  } else if (!isS4(x) && is.atomic(raw)) {
-    offset <- min(offset, max(0L, length(raw) - 1L))
-    indices <- offset + seq_len(min(rows, length(raw) - offset))
-    index_labels <- formatC(indices, format = "f", digits = 0L, width = 1L)
-    labels <- attr(x, "names", exact = TRUE)
-    names <- if (is.null(labels)) paste0("[", index_labels, "]") else .explorer_text(labels[indices])
-    template <- .explorer_template(x)
-    values <- vapply(indices, function(i) .explorer_brief(.explorer_restore(raw[[i]], template), 1L), character(1L))
-    c(.table_format(data.frame(index = names, value = values, stringsAsFactors = FALSE), width)$lines,
-      if (length(raw) > rows) paste0("Elements ", index_labels[[1L]], "-", utils::tail(index_labels, 1L), " of ", length(raw),
-        ". Use [ / ] for another preview batch."))
-  } else if (is.environment(x)) {
-    c("Environment values are opened individually from Children.",
-      "Active bindings and promises remain unevaluated.")
-  } else if (isS4(x)) c("S4 slots are listed in Children.", "Open a slot to inspect its ordinary value.") else
-    c(.explorer_brief(x), "Use Children to inspect individual elements; switch views to inspect attributes.")
+  } else {
+    lines <- if (is.function(x)) deparse(x, width.cutoff = max(20L, min(500L, width)), nlines = rows)
+      else if (is.environment(x)) c("Environment values are opened individually from Children.",
+        "Active bindings and promises remain unevaluated.") else if (isS4(x))
+          c("S4 slots are listed in Children.", "Open a slot to inspect its ordinary value.") else
+            c(.explorer_brief(x), "Use Children to inspect individual elements; switch views to inspect attributes.")
+    if (nzchar(query)) lines <- lines[stringi::stri_detect_fixed(.safe_text(lines), query,
+      opts_fixed = stringi::stri_opts_fixed(case_insensitive = TRUE))]
+    if (length(lines)) lines else "(No matching preview text)"
+  }
   if (!length(out)) out <- if (is.null(x)) "NULL" else "(empty object)"
   out <- unlist(lapply(.safe_text(out), function(line) .condition_wrap(line, max(4L, width), continuation = "")), use.names = FALSE)
   if (width < 4L) out <- .panel_fit(out, width)
   out <- utils::head(out, rows * 4L + 12L)
   stopifnot("safe preview must be bounded nonmissing text" = is.character(out) && !anyNA(out) &&
-              length(out) <= rows * 4L + 12L)
+    length(out) <= rows * 4L + 12L)
   out
 }
 
@@ -466,9 +455,14 @@
   key <- list(node$view, node$query, node$offset, width, node$show_sizes, node$cache$size_revision)
   if (identical(node$cache$content_key, key)) return(node$cache$content)
   out <- if (node$view == "preview") {
-    lines <- .explorer_preview(node$value, width, node$limit, node$offset)
+    selection <- .explorer_preview_load(node)
+    lines <- .explorer_preview(node$value, width, node$limit, node$offset,
+      selection = selection, query = node$query)
     list(lines = lines, records = seq_along(lines), heading = if (.explorer_leaf(node$value))
-      "Atomic value: no further children" else "Underlying values; custom methods are not called")
+      "Atomic value: no further children" else if (is.null(selection))
+        "Bounded preview text; custom methods are not called" else
+          "Underlying values; filter checks every row and column",
+      matches = if (nzchar(node$query)) .panel_matches(lines, node$query) else NULL)
   } else if (node$view == "children" && .explorer_leaf(node$value)) {
     lines <- .condition_wrap(c("Atomic value: no further children.",
       .explorer_brief(node$value), "Use Preview or Attributes for more detail."), max(4L, width))
@@ -499,16 +493,19 @@
     "Switch Children, Preview, Attributes.", "Select a record or move a preview line.",
     "Move one visible page.", "Previous or next bounded batch, including atomic previews.",
     "Toggle cached sizes for visible child records.", "First or last record.",
-    "Filter child names; type an index for unnamed elements.", "Accept or cancel the name filter.",
+    "Filter names in Children/Attributes; values in Preview.", "Apply the filter or restore the previous filter and position.",
     "Move three records.", "Select a child.", "Open a child.",
     "Select and copy visible text; Ctrl selects a rectangle.",
-    "Paste into the name filter in Children or Attributes.",
+    "Paste into the current view's filter.",
     "Toggle this shortcut reference.", "Close the explorer.")
   out <- c(.table_format(data.frame(key = keys, action = descriptions, stringsAsFactors = FALSE), width)$lines,
     "", .condition_wrap(c("Promises and active bindings are never evaluated.",
       "Atomic vectors open as Preview leaves; opening them never creates element children.",
-      "Attributes remain inspectable; [ / ] pages through long atomic previews.",
-      "Preview shows underlying values without custom methods.",
+      "Attributes remain inspectable; [ / ] pages through matching rows or atomic values.",
+      "Preview filters are literal and case-insensitive; Ctrl+U clears the query.",
+      "Tables search every row and column, including values beyond the visible batch.",
+      "Primitive values are searched before display clipping; list cells use safe summaries.",
+      "Other objects filter their bounded preview text without calling custom methods.",
       "Approximate sizes can count shared storage more than once and exclude referenced environments."),
       max(4L, width), continuation = ""))
   if (width < 4L) out <- .panel_fit(out, width)
@@ -535,11 +532,13 @@
   views <- c(children = "Children", preview = "Preview", attributes = "Attributes")
   tabs <- paste(ifelse(names(views) == node$view, paste0("[", views, "]"), views), collapse = "   ")
   leaf <- node$view != "attributes" && .explorer_leaf(node$value)
-  pageable <- leaf && length(node$meta$dimensions) < 2L && node$meta$length > node$limit
-  hint_key <- list(config$keybindings, width, config$theme$colors, config$color, leaf, pageable)
+  preview <- if (node$view == "preview") .explorer_preview_load(node) else NULL
+  pageable <- !is.null(preview) && preview$matched > node$limit
+  hint_key <- list(config$keybindings, width, config$theme$colors, config$color, leaf, pageable, node$view)
   if (!identical(node$cache$hint_key, hint_key)) {
-    hints <- if (leaf) stats::setNames(c("parent", "view", if (pageable) "batch", "keys", "close"),
-      c(.viewer_keys(config, "left"), .viewer_keys(config, "complete"),
+    hints <- if (node$view == "preview" || leaf) stats::setNames(
+      c("parent", "view", "filter", if (pageable) "batch", "keys", "close"),
+      c(.viewer_keys(config, "left"), .viewer_keys(config, "complete"), "/",
         if (pageable) "[/]", .viewer_keys(config, "help"), "q")) else
       stats::setNames(c("open", "parent", "view", "filter", "keys", "close"),
         c(.viewer_keys(config, "submit"), .viewer_keys(config, "left"), .viewer_keys(config, "complete"),
@@ -584,12 +583,21 @@
       if (nzchar(node$query)) paste0(" matching '", node$query, "'") else "",
       "  selected ", if (nrow(loaded$data)) min(node$cursor, nrow(loaded$data)) else 0L,
       "  ", .footer_hints(c("[/]" = "batch", s = paste("sizes", if (node$show_sizes) "on" else "off")),
-        config, width)) else paste0("Preview line ", node$cursor, "/", length(content$lines))
+        config, width)) else if (!is.null(preview)) paste0(
+          if (preview$spec$kind == "table") "Rows " else "Values ",
+          if (length(preview$indices)) preview$offset + 1L else 0L, "-",
+          preview$offset + length(preview$indices), " of ", preview$matched,
+          if (nzchar(node$query)) paste0(" (", preview$total, " total) matching '", node$query, "'") else "") else
+            paste0("Preview line ", node$cursor, "/", length(content$lines),
+              if (nzchar(node$query)) paste0(" matching '", node$query, "' (bounded text)") else "")
   if (nzchar(state$status)) footer <- state$status
-  caption <- if (state$searching) paste0("Filter names: ", node$query, node$cache$filter_hint) else node$cache$caption
+  caption <- if (state$searching) paste0(style_text(
+    if (node$view == "preview") "Filter values: " else "Filter names: ", "accent", config$theme, config$color),
+    node$query, node$cache$filter_hint) else node$cache$caption
   frame <- .panel_frame(content$lines, title, config, size, cursor = min(active), top = top,
     caption = caption, footer = footer, cache = node$cache$frames, header = headers,
-    active_rows = if (state$help) integer() else active)
+    active_rows = if (state$help) integer() else active,
+    matches = if (state$help) NULL else content$matches)
   hit <- rep(NA_integer_, length(frame))
   shown <- seq.int(top, min(length(content$lines), top + layout$page - 1L))
   hit[layout$header + seq_along(shown)] <- content$records[shown]
@@ -634,8 +642,10 @@
   }
   if (state$searching) {
     if (key == "escape" || (ctrl && key == "c")) {
-      node$query <- state$search_before
+      node[names(state$search_before)] <- state$search_before
       state$searching <- FALSE
+      state$stack[[depth]] <- node
+      return(state)
     } else if (key == "enter") state$searching <- FALSE
     else if (key == "backspace") node$query <- paste(utils::head(
       stringi::stri_split_boundaries(node$query, type = "character")[[1L]], -1L), collapse = "")
@@ -648,17 +658,13 @@
     return(state)
   }
   if (key == "help") { state$help <- TRUE; state$help_top <- 1L; return(state) }
-  if (identical(event$type, "paste") && node$view != "preview") {
+  if (identical(event$type, "paste")) {
     state$searching <- TRUE
-    state$search_before <- node$query
+    state$search_before <- node[c("query", "offset", "cursor", "top")]
     node$query <- substr(gsub("[\r\n\t]", " ", .safe_text(text)), 1L, 200L)
     node$offset <- 0L
     node$cursor <- node$top <- 1L
     state$stack[[depth]] <- node
-    return(state)
-  }
-  if (identical(event$type, "paste")) {
-    state$status <- "Preview is read-only. Tab changes views; paste a name filter in Children or Attributes."
     return(state)
   }
   if (identical(text, "s") && node$view != "preview") {
@@ -689,9 +695,9 @@
     state$stack[[depth]] <- node
     return(state)
   }
-  if (identical(text, "/") && node$view != "preview") {
+  if (identical(text, "/")) {
     state$searching <- TRUE
-    state$search_before <- node$query
+    state$search_before <- node[c("query", "offset", "cursor", "top")]
     node$query <- ""
     node$offset <- 0L
     node$cursor <- node$top <- 1L
@@ -699,8 +705,8 @@
     return(state)
   }
   data <- if (node$view != "preview") .explorer_load(node) else NULL
-  preview_total <- if (node$view == "preview" && .explorer_leaf(node$value) &&
-                        length(node$meta$dimensions) < 2L) node$meta$length else 0L
+  preview <- if (node$view == "preview") .explorer_preview_load(node) else NULL
+  preview_total <- if (is.null(preview)) 0L else preview$matched
   preview_width <- if (is.list(node$cache$content_key)) node$cache$content_key[[4L]] else 80L
   count <- if (is.null(data)) {
     length(.explorer_content(node, preview_width)$lines)

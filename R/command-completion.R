@@ -64,30 +64,246 @@
   out
 }
 
-#' Start One Background CRAN Index Download
-#' @param repository Repository URL.
-#' @param destination Plain index file.
-#' @return Worker task paths invisibly.
+#' Test Whether an Owned Index Process Is Still Running
+#' @param worker An owned worker environment.
+#' @return A logical scalar. An inspection error conservatively means alive.
 #' @noRd
-.start_cran_index <- function(repository, destination) {
-  stopifnot("repository and destination must be text" = .is_text(repository) && .is_text(destination))
+.cran_worker_alive <- function(worker) {
+  stopifnot("worker must be an environment" = is.environment(worker))
+  out <- !is.null(worker$process) &&
+    tryCatch(isTRUE(worker$process$is_alive()), error = function(e) TRUE)
+  stopifnot("worker liveness must be logical" = .is_flag(out))
+  out
+}
+
+#' Stop and Reap an Index Worker Before Removing Its Files
+#' @param worker An owned worker environment.
+#' @param wait Allow a bounded wait during shutdown, never during completion.
+#' @return Whether the process has exited and its directory was removed.
+#' @noRd
+.dispose_cran_worker <- function(worker, wait = FALSE) {
+  stopifnot("worker must own a directory" = is.environment(worker) && .is_text(worker$directory),
+            "wait must be logical" = .is_flag(wait))
+  if (.cran_worker_alive(worker))
+    try(worker$process$kill(grace = if (wait) 0.1 else 0), silent = TRUE)
+  if (!is.null(worker$process))
+    try(worker$process$wait(timeout = if (wait) 1000L else 0L), silent = TRUE)
+  if (.cran_worker_alive(worker)) return(FALSE)
+  unlink(worker$directory, recursive = TRUE)
+  out <- !dir.exists(worker$directory)
+  stopifnot("worker disposal must return logical" = .is_flag(out))
+  out
+}
+
+#' Reap Previously Cancelled Index Processes Without Blocking Tab
+#' @param wait Allow a bounded shutdown wait.
+#' @param state The private index ownership environment.
+#' @return The number of jobs still awaiting cleanup, invisibly.
+#' @noRd
+.reap_cran_workers <- function(wait = FALSE, state = .package_index) {
+  stopifnot("wait must be logical" = .is_flag(wait), "state must be an environment" = is.environment(state))
+  workers <- state$retired
+  if (length(workers)) {
+    removed <- vapply(workers, function(worker)
+      tryCatch(.dispose_cran_worker(worker, wait), error = function(e) FALSE), logical(1L))
+    state$retired <- workers[!removed]
+  }
+  out <- length(state$retired)
+  stopifnot("remaining job count must be nonnegative" = .is_count(out))
+  invisible(out)
+}
+
+#' Cancel All Owned Index Jobs and Retain Ownership Until Reaped
+#' @param wait Allow a bounded shutdown wait.
+#' @param state The private index ownership environment.
+#' @return The number of jobs still awaiting cleanup, invisibly.
+#' @noRd
+.cleanup_cran_workers <- function(wait = FALSE, state = .package_index) {
+  stopifnot("wait must be logical" = .is_flag(wait), "state must be an environment" = is.environment(state))
+  suspendInterrupts({
+    if (is.environment(state$worker)) {
+      state$retired <- c(state$retired, list(state$worker))
+      state$worker <- NULL
+    }
+    out <- .reap_cran_workers(wait, state)
+  })
+  stopifnot("remaining job count must be nonnegative" = .is_count(out))
+  invisible(out)
+}
+
+#' Register Normal-Exit Cleanup for the Index Owner
+#' @param state The private index ownership environment.
+#' @return NULL invisibly.
+#' @noRd
+.register_cran_cleanup <- function(state = .package_index) {
+  stopifnot("state must be an environment" = is.environment(state))
+  if (!isTRUE(state$finalizer_registered)) {
+    reg.finalizer(state, function(owner)
+      try(.cleanup_cran_workers(wait = TRUE, state = owner), silent = TRUE), onexit = TRUE)
+    state$finalizer_registered <- TRUE
+  }
+  stopifnot("index cleanup must be registered" = isTRUE(state$finalizer_registered))
+  invisible(NULL)
+}
+
+#' Launch a Supervised Index Process Without Shell Argument Parsing
+#' @param executable Rscript executable.
+#' @param script Worker script path.
+#' @param task Task file path.
+#' @param log Combined output path.
+#' @return A processx process handle.
+#' @noRd
+.new_cran_process <- function(executable, script, task, log) {
+  stopifnot("worker paths must be nonempty strings" =
+    all(vapply(list(executable, script, task, log), .is_text, logical(1L))))
+  out <- processx::process$new(executable, c("--vanilla", script, task),
+    stdout = log, stderr = "2>&1", cleanup = TRUE, supervise = TRUE,
+    windows_hide_window = TRUE)
+  stopifnot("worker must have a managed process handle" =
+    is.environment(out) && is.function(out$is_alive) && is.function(out$kill))
+  out
+}
+
+#' Start and Own One Background CRAN Index Download
+#' @param repository Repository URL.
+#' @param destination Plain index file, written only by the parent.
+#' @param script Installed worker script; replaceable for offline lifecycle tests.
+#' @return An owned worker environment invisibly.
+#' @noRd
+.start_cran_index <- function(repository, destination,
+                              script = system.file("scripts", "cran-index.R", package = "prismrepl")) {
+  stopifnot("repository and destination must be text" = .is_text(repository) && .is_text(destination),
+            "only one index download may be active" = is.null(.package_index$worker))
+  stopifnot("the CRAN index worker must be installed" = .is_text(script) && file.exists(script))
+  .register_cran_cleanup()
+  worker <- new.env(parent = emptyenv())
+  worker$directory <- tempfile("prism-cran-")
+  worker$task <- file.path(worker$directory, "task.dcf")
+  worker$log <- file.path(worker$directory, "worker.log")
+  worker$done <- file.path(worker$directory, "done.txt")
+  worker$result <- file.path(worker$directory, "index.txt")
+  worker$repository <- repository
+  worker$destination <- destination
+  worker$key <- paste(repository, destination, sep = "\n")
+  worker$started <- as.numeric(Sys.time())
+  transferred <- FALSE
+  on.exit(if (!transferred) {
+    .package_index$retired <- c(.package_index$retired, list(worker))
+    .reap_cran_workers(wait = TRUE)
+  }, add = TRUE)
+  if (!dir.create(worker$directory, mode = "0700"))
+    stop("Cannot create the package-index worker directory.", call. = FALSE)
+  write.dcf(data.frame(Repository = repository, Result = worker$result, Done = worker$done,
+                       stringsAsFactors = FALSE), file = worker$task, width = 100000L)
+  executable <- file.path(R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
+  # No interrupt may strand a returned process between creation and ownership.
+  suspendInterrupts({
+    worker$process <- .new_cran_process(executable, script, worker$task, worker$log)
+    .package_index$key <- worker$key
+    .package_index$worker <- worker
+    transferred <- TRUE
+  })
+  stopifnot("the active worker must own its process and scratch directory" =
+    identical(.package_index$worker, worker) && dir.exists(worker$directory))
+  invisible(worker)
+}
+
+#' Replace a Validated Cache Through a Staged File
+#' @param packages Validated package names.
+#' @param repository Repository URL.
+#' @param destination Cache file path.
+#' @return The destination invisibly.
+#' @details POSIX rename replaces the file atomically. Windows may need two
+#'   renames with a brief missing destination; an error rolls the old file back.
+#'   A failed rollback retains its recovery file and reports its location.
+#' @noRd
+.write_cran_cache <- function(packages, repository, destination) {
+  stopifnot("package names must be valid nonempty text" = is.character(packages) &&
+              length(packages) > 0L && !anyNA(packages) &&
+              all(grepl("^[A-Za-z][A-Za-z0-9.]*$", packages)),
+            "repository and destination must be text" = .is_text(repository) && .is_text(destination))
   directory <- dirname(destination)
   if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE, showWarnings = FALSE))
     stop("Cannot create the package-name cache directory.", call. = FALSE)
-  script <- system.file("scripts", "cran-index.R", package = "prismrepl")
-  stopifnot("the CRAN index worker must be installed" = nzchar(script) && file.exists(script))
-  task <- tempfile("prism-cran-", fileext = ".dcf")
-  log <- paste0(task, ".log")
-  done <- paste0(task, ".done")
-  write.dcf(data.frame(Repository = repository, Destination = destination, Done = done,
-                       stringsAsFactors = FALSE), file = task)
-  executable <- file.path(R.home("bin"), if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript")
-  status <- system2(executable, c("--vanilla", shQuote(script), shQuote(task)),
-                    stdout = log, stderr = log, wait = FALSE)
-  if (!identical(as.integer(status), 0L)) stop("Cannot start the CRAN package index download.", call. = FALSE)
-  out <- list(task = task, log = log, done = done, started = as.numeric(Sys.time()))
-  stopifnot("worker must have completion and log paths" = .is_text(out$done) && .is_text(out$log))
-  invisible(out)
+  if (dir.exists(destination)) stop("The package-name cache path is a directory.", call. = FALSE)
+  staged <- tempfile(".prism-cran-index-", tmpdir = directory)
+  backup <- tempfile(".prism-cran-backup-", tmpdir = directory)
+  moved <- saved <- FALSE
+  on.exit({
+    restored <- TRUE
+    if (moved && !saved && file.exists(backup)) {
+      restored <- suppressWarnings(file.rename(backup, destination))
+    }
+    unlink(staged)
+    if (saved || !moved) unlink(backup)
+    if (!isTRUE(restored)) warning(paste("The previous CRAN cache is retained at", backup), call. = FALSE)
+  }, add = TRUE)
+  writeLines(c(paste0("Repository: ", repository), packages), staged, useBytes = TRUE)
+  suspendInterrupts({
+    saved <- suppressWarnings(file.rename(staged, destination))
+    if (!saved && file.exists(destination)) {
+      moved <- suppressWarnings(file.rename(destination, backup))
+      if (moved) saved <- suppressWarnings(file.rename(staged, destination))
+    }
+  })
+  if (!saved) stop("Cannot publish the CRAN index; the previous cache was retained for recovery.", call. = FALSE)
+  stopifnot("the published index must exist" = file.exists(destination))
+  invisible(destination)
+}
+
+#' Publish Only the Completed Result Still Owned by This Repository
+#' @param worker The completed worker environment.
+#' @param state The private index ownership environment.
+#' @return TRUE for publication, FALSE for an obsolete job.
+#' @noRd
+.publish_cran_index <- function(worker, state = .package_index) {
+  stopifnot("worker and state must be environments" = is.environment(worker) && is.environment(state))
+  if (!identical(state$worker, worker) || !identical(state$key, worker$key)) return(FALSE)
+  stopifnot("a running worker cannot publish" = !.cran_worker_alive(worker))
+  index <- .read_cran_index(worker$result, worker$repository)
+  if (is.null(index)) stop("The downloaded CRAN index failed validation.", call. = FALSE)
+  .write_cran_cache(index$names, worker$repository, worker$destination)
+  state$cache_signature <- NULL
+  stopifnot("published cache must be a file" = file.exists(worker$destination))
+  TRUE
+}
+
+#' Poll a Managed Index Job Without Waiting for Network I/O
+#' @param state The private index ownership environment.
+#' @param now Current time in seconds, injectable for timeout tests.
+#' @return NULL invisibly.
+#' @noRd
+.poll_cran_index <- function(state = .package_index, now = as.numeric(Sys.time())) {
+  stopifnot("state must be an environment" = is.environment(state),
+            "now must be finite scalar seconds" = is.numeric(now) && length(now) == 1L && is.finite(now))
+  worker <- state$worker
+  if (!is.environment(worker)) return(invisible(NULL))
+  if (!identical(worker$key, state$key)) {
+    .cleanup_cran_workers(state = state)
+    return(invisible(NULL))
+  }
+  if (.cran_worker_alive(worker)) {
+    if (now - worker$started > 120) {
+      state$failed <- TRUE
+      state$failure <- "timed out"
+      .cleanup_cran_workers(state = state)
+    }
+    return(invisible(NULL))
+  }
+  result <- tryCatch({
+    exit <- worker$process$get_exit_status()
+    status <- if (file.exists(worker$done) && file.info(worker$done)$size <= 4096)
+      readLines(worker$done, n = 1L, warn = FALSE, encoding = "UTF-8") else character()
+    if (!identical(exit, 0L) || !identical(status, "ok"))
+      stop(if (length(status)) status else "The CRAN index worker exited without a result.", call. = FALSE)
+    .publish_cran_index(worker, state)
+    "ok"
+  }, error = function(e) conditionMessage(e))
+  state$failed <- !identical(result, "ok")
+  state$failure <- if (state$failed) .safe_text(result) else ""
+  .cleanup_cran_workers(state = state)
+  stopifnot("completion must release the active job" = is.null(state$worker))
+  invisible(NULL)
 }
 
 #' Obtain CRAN Names Without Blocking Keystrokes on Network I/O
@@ -100,21 +316,14 @@
   repository <- .cran_repository()
   path <- file.path(tools::R_user_dir("prismrepl", "cache"), "cran-packages.txt")
   key <- paste(repository, path, sep = "\n")
+  .reap_cran_workers()
   if (!identical(.package_index$key, key)) {
+    .cleanup_cran_workers()
     .package_index$key <- key
-    .package_index$worker <- NULL
     .package_index$failed <- FALSE
     .package_index$failure <- ""
   }
-  worker <- .package_index$worker
-  if (is.list(worker) && (file.exists(worker$done) || as.numeric(Sys.time()) - worker$started > 120)) {
-    result <- if (file.exists(worker$done)) tryCatch(readLines(worker$done, n = 1L, warn = FALSE),
-      error = function(e) "failed") else "timed out"
-    .package_index$failed <- !identical(result, "ok")
-    .package_index$failure <- if (.package_index$failed) .safe_text(paste(result, collapse = " ")) else ""
-    unlink(c(worker$task, worker$log, worker$done))
-    .package_index$worker <- NULL
-  }
+  .poll_cran_index()
   cached <- .cached_cran_index(path, repository)
   stale <- is.null(cached) || as.numeric(Sys.time()) - cached$modified > 24 * 3600
   if (refresh) .package_index$failed <- FALSE
@@ -123,9 +332,9 @@
     if (inherits(attempt, "error")) {
       .package_index$failed <- TRUE
       .package_index$failure <- .safe_text(conditionMessage(attempt))
-    } else .package_index$worker <- attempt
+    }
   }
-  downloading <- is.list(.package_index$worker)
+  downloading <- is.environment(.package_index$worker)
   status <- if (downloading) "Updating CRAN package names in the background; press Tab again shortly." else
     if (isTRUE(.package_index$failed)) paste0("CRAN index unavailable", if (!is.null(cached)) "; using cached names" else "",
       ". Use :install --refresh to retry.") else if (is.null(cached)) "No cached CRAN package index." else ""
@@ -211,8 +420,8 @@
   token <- substr(before, start + 1L, cursor)
   note <- ""
   pool <- switch(command,
-    attach = rownames(utils::installed.packages(fields = NULL)),
-    docs = rownames(utils::installed.packages(fields = NULL)),
+    attach = base::.packages(all.available = TRUE),
+    docs = base::.packages(all.available = TRUE),
     install = {
       index <- .cran_package_names()
       note <- index$status
@@ -221,9 +430,10 @@
     detach = sub("^package:", "", search()[startsWith(search(), "package:")]),
     view = ls(envir, all.names = TRUE), objects = ls(envir, all.names = TRUE),
     rm = ls(envir, all.names = TRUE), edit = .completion_names(envir),
-    theme = c("auto", repl_themes()), status = c("directory", "git", "objects", "packages", "memory", "none"),
+    theme = c("auto", repl_themes()), status = c("process_memory", "directory", "git", "objects", "packages", "memory", "none"),
     ui = c("fullscreen", "inline"), sidebar = c("on", "off"), mouse = c("on", "off"),
     rainbow = c("on", "off", "toggle"), autopair = c("on", "off", "toggle"),
+    match = c("on", "off", "toggle"),
     ai = c(repl_ai_providers()$provider, "custom"),
     settings = "reset", explain = c("copy", "minimal"), pipe = c("|>", "%>%"),
     bind = c(names(.default_keybindings()), "reset"), unbind = names(.default_keybindings()), character())

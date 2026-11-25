@@ -20,6 +20,7 @@ import sys
 import termios
 import time
 import unicodedata
+from pty_support import terminal_snapshot
 
 source = Path(__file__).with_name("pty-fullscreen.py")
 model_ast = next(node for node in ast.parse(source.read_text(encoding="utf-8")).body
@@ -33,7 +34,7 @@ if os.name != "posix":
 
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 32, 110, 0, 0))
-original_modes = termios.tcgetattr(slave)
+original_modes = terminal_snapshot(slave)
 model = Screen(32, 110)
 raw = bytearray()
 environment = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
@@ -159,7 +160,7 @@ try:
     search("References")
     wait_for("The New S Language")
     assert "3" in model.sgr, "Missing italic font style in installed documentation"
-    send("\x1bOP")
+    send("\x1bOQ")
     wait_for("Viewer shortcuts")
     wait_for("Right-click")
     send("q")
@@ -196,13 +197,13 @@ try:
     wait_for("DOCS_PTY_DONE")
     process.wait(timeout=10)
     assert process.returncode == 0, process.returncode
-    assert termios.tcgetattr(slave) == original_modes
+    assert terminal_snapshot(slave) == original_modes
     assert model.enters == model.leaves == 1
     assert not model.bad_cursor, model.bad_cursor
     assert model.alternate_scrolls == 0, model.alternate_scrolls
     print("PASS: installed rich docs with bold/italic/syntax styles; all literal occurrences;")
     print("same-line next/previous jumps without unnecessary panning; wrapped phrase search;")
-    print("mouse copy and right-click paste into search via session clipboard; F1 and resize;")
+    print("mouse copy and right-click paste into search via session clipboard; F2 and resize;")
     print("Unicode leaf previews with finite drill-down; exact heading/data column alignment;")
     print("shared alternate screen, zero scrolling redraws, and exact terminal restoration.")
 except BaseException:

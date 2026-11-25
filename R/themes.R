@@ -51,6 +51,7 @@ repl_theme <- function(name = "midnight", overrides = NULL,
     function_name = s(p$cyan), operator = s(p$yellow), symbol = s(p$foreground),
     rainbow1 = s(p$yellow), rainbow2 = s(p$magenta), rainbow3 = s(p$cyan),
     rainbow4 = s(p$green), rainbow5 = s(p$blue), rainbow6 = s(p$accent),
+    pair_match = .theme_pair_style(light),
     muted = s(p$muted), accent = s(p$accent, bold = TRUE),
     selection = s(p$foreground, p$selection, bold = TRUE),
     heading = s(p$accent, bold = TRUE),
@@ -262,6 +263,19 @@ repl_theme <- function(name = "midnight", overrides = NULL,
   out
 }
 
+#' Choose a Contrasting Style for the Pair at the Cursor
+#' @param light Whether the surrounding theme has a light background.
+#' @return A semantic style with explicit foreground and background colors.
+#' @keywords internal
+#' @noRd
+.theme_pair_style <- function(light) {
+  stopifnot("light must be logical" = .is_flag(light))
+  out <- list(fg = if (light) "#FFFFFF" else "#111111",
+    bg = if (light) "#164AA0" else "#F7D154", bold = TRUE, italic = FALSE, underline = TRUE)
+  stopifnot("pair focus colors must differ" = !identical(out$fg, out$bg))
+  out
+}
+
 #' Recompile a theme for terminal capability while retaining custom overrides
 #' @param theme A theme list, including legacy lists with name and colors.
 #' @param color_depth Terminal color depth.
@@ -278,13 +292,16 @@ repl_theme <- function(name = "midnight", overrides = NULL,
     stopifnot("legacy theme must contain named numeric SGR colors" =
                 is.character(legacy) && !is.null(names(legacy)) && !anyNA(legacy) &&
                 all(grepl("^[0-9;]*$", legacy)))
-    built_in <- if (theme$name %in% repl_themes()) theme$name else "midnight"
+    built_in <- if (theme$name %in% repl_themes()) theme$name else
+      if (identical(theme$mode, "light")) "white" else "midnight"
     replacement <- repl_theme(built_in, color_depth = color_depth)
     legacy <- legacy[names(legacy) %in% names(replacement$styles)]
     replacement$overrides <- as.list(legacy)
     replacement$name <- theme$name
     theme <- replacement
   }
+  if (is.null(theme$styles$pair_match)) theme$styles$pair_match <- .theme_pair_style(
+    identical(theme$mode, "light") || theme$name %in% c("paper", "white", "solarized-light"))
   depth <- if (identical(theme$name, "mono")) 0L else as.integer(color_depth)
   theme$colors <- vapply(theme$styles, .style_sgr, character(1), depth = depth)
   if (depth == 16L) {

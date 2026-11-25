@@ -1,4 +1,4 @@
-#' A Unicode-Aware Interactive Console for R
+#' Snappy and Rich Terminal Console
 #'
 #' Start [repl()] from an interactive R terminal. Loading the package has no
 #' startup effects. See [repl_config()] and [keymap()] for configuration and

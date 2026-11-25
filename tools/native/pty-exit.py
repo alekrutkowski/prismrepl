@@ -6,20 +6,25 @@ handlers in the REPL call stack. It does not test forced process termination.
 """
 import fcntl
 import os
+from pathlib import Path
 import pty
 import re
 import select
 import struct
 import subprocess
+import sys
 import termios
 import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pty_support import terminal_snapshot
 
 if os.name != "posix":
     raise SystemExit("This test requires a POSIX pseudo-terminal.")
 
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
-before = termios.tcgetattr(slave)
+before = terminal_snapshot(slave)
 process = subprocess.Popen(
     [os.environ.get("PRISM_R", "R"), "--vanilla", "--quiet", "--interactive"],
     stdin=slave, stdout=slave, stderr=slave,
@@ -73,7 +78,7 @@ try:
     assert raw.rfind(b"\x1b[?1049l") > raw.rfind(b"\x1b[?1049h"), (
         "R exited without restoring the main screen: %r" % raw[-5000:]
     )
-    assert termios.tcgetattr(slave) == before, "R exited with changed input modes."
+    assert terminal_snapshot(slave) == before, "R exited with changed input modes."
     assert raw.rfind(b"\x1b]112\x07") > raw.rfind(b"\x1b]12;rgb:FF/FF/FF\x07"), (
         "R exited without restoring the default cursor color."
     )

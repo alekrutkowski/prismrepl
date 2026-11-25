@@ -11,14 +11,16 @@ git_info(path = getwd())
 }
 \value{
 A list with \code{available}, \code{is_repo}, \code{root}, \code{branch}, \code{dirty}, \code{ahead},
-\code{behind}, \code{tracked_changes}, and \code{error}. Missing repository metadata is
-represented by empty strings or \code{NA}.
+\code{behind}, \code{tracked_changes}, and \code{error}. Once a repository is identified,
+\code{is_repo} and \code{root} are retained if its status is unavailable. Missing
+metadata is represented by empty strings or \code{NA}.
 }
 \description{
-Uses Git only when installed, never contacts a remote, and imposes a short
-timeout. Dirty status counts tracked files; untracked files are excluded to
-keep the prompt responsive. Call after commands and cache the result instead
-of calling on every key press.
+Uses installed Git to run local \code{rev-parse} and \code{status} commands with a
+short timeout. It does not invoke fetch, pull, or push. Git may invoke
+helpers configured by the repository or user. Dirty status counts tracked
+files; untracked files are excluded to keep the prompt responsive. Call
+after commands and cache the result instead of calling on every key press.
 }
 \examples{
 git_info(tempdir())

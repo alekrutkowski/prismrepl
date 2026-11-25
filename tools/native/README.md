@@ -22,6 +22,7 @@ non-interactive terminal detection.
 On POSIX systems, after installing the package, also run:
 
 ```sh
+python3 tools/native/pty-termios.py
 python3 tools/native/pty-exit.py
 python3 tools/native/pty-io.py
 ```
@@ -30,6 +31,18 @@ Set `PRISM_R` to choose an R executable. This starts the fullscreen REPL in a
 real pseudo-terminal, executes `q('no')`, and checks that exit finalizers restore
 the main screen and the exact original terminal input settings. This covers R
 process exit, which does not follow the REPL's normal return path.
+
+The shared `tools/pty_support.py` snapshot first issues `FIONREAD` on macOS.
+Darwin sets the transient `PENDIN` state bit when canonical input is restored;
+its input-availability query resolves that state without reading or flushing
+queued input. The tests then compare every termios field exactly. They do not
+mask a flag or replace the runtime's `TCSANOW` restore with an input flush.
+`pty-termios.py` needs no R installation and checks query ordering, a raw-mode
+round trip, preserved typeahead, and detection of a genuine changed echo mode.
+The kernel behavior is documented in Apple's
+[terminal flags](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/termios.h)
+and [TTY implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/tty.c)
+(`ttioctl_locked`, `FIONREAD`, `ttnread`, and `ttypend`).
 
 `pty-io.py` verifies native buffered UTF-8 writes through a real PTY, including
 intentional bypass of R output sinks, optional synchronized frame delimiters,
@@ -58,10 +71,13 @@ Primary API references:
 - [Xterm mouse and OSC control sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 
 `tools/pty-basic.py` separately checks the host console fallback. Before its
-single Ctrl+D event, it waits for the host editor's terminal preparation and a
-brief settling interval. The fallback prints its prompt before `readLines()`
-enters that editor, so the visible prompt alone is not a synthetic-input
-readiness signal. No production terminal behavior is changed by this test barrier.
+single Ctrl+D event, it waits for the host editor's actual terminal preparation
+when R reports command-line editing support. The inline harness likewise waits
+for a fresh native input protocol marker and raw terminal mode before typing.
+Output and prompts can appear before input is ready; sending a submit CR during
+that transition can let canonical input translate it into the Ctrl+J newline
+shortcut. These barriers use observed state rather than fixed settling sleeps.
+No production terminal behavior is changed by either test barrier.
 
 ## Windows console integration
 

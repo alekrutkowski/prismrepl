@@ -8,6 +8,7 @@
 args <- commandArgs(trailingOnly = TRUE)
 script <- sub("^--file=", "", grep("^--file=", commandArgs(), value = TRUE)[1L])
 root <- normalizePath(file.path(dirname(script), ".."), mustWork = TRUE)
+package_version <- read.dcf(file.path(root, "DESCRIPTION"), fields = "Version")[[1L]]
 destination <- if (length(args)) args[[1L]] else file.path(root, "tools", "figures")
 dir.create(destination, recursive = TRUE, showWarnings = FALSE)
 stopifnot("jsonlite must be installed for the developer exporter" =
@@ -30,7 +31,7 @@ demo_session <- function(theme = "midnight") {
   stopifnot("theme must be a built-in name" = theme %in% ns$repl_themes())
   cfg <- ns$repl_config(theme = theme, color = TRUE, color_depth = 16777216L,
     unicode = TRUE, width = NULL, ui = "fullscreen", hyperlinks = TRUE,
-    rows = 3L, status = c("objects", "memory", "packages"), trace_limit = 4L,
+    rows = 3L, status = c("process_memory", "objects", "memory", "packages"), trace_limit = 4L,
     settings_file = NULL)
   cfg$screen <- ns$screen_state()
   cfg$screen$active <- TRUE
@@ -61,8 +62,10 @@ demo_session <- function(theme = "midnight") {
   result <- ns$.with_screen_output(function(local) ns$evaluate_r(code, env, local),
                                    cfg, paint = FALSE)
   cfg$screen$mode <- "ERROR"
-  cfg$screen$sidebar <- ns$.session_sidebar(env, cfg)
-  cfg$screen$status <- ns$.session_status(env, cfg)
+  inventory <- ns$workspace_objects(env, sizes = "memory" %in% cfg$status)
+  process_memory <- ns$.process_memory()
+  cfg$screen$sidebar <- ns$.session_sidebar(env, cfg, inventory, process_memory)
+  cfg$screen$status <- ns$.session_status(env, cfg, inventory, process_memory)
   stopifnot("demo must capture all three condition types" =
               length(result$messages) == 1L && length(result$warnings) == 1L &&
               inherits(result$error, "error"),
@@ -74,17 +77,25 @@ demo_session <- function(theme = "midnight") {
 #' @param config Configuration containing the demo screen.
 #' @param width,height Terminal columns and rows.
 #' @param name File basename.
+#' @param text Optional source buffer; NULL uses the general console example.
+#' @param cursor Optional zero-based grapheme cursor position in the buffer.
 #' @return A frame with exact terminal dimensions.
 #' @noRd
-export_frame <- function(config, width, height, name) {
+export_frame <- function(config, width, height, name, text = NULL, cursor = NULL) {
   stopifnot("width and height must be positive integers" =
               ns$.is_count(width, 1L) && ns$.is_count(height, 1L),
-            "name must be scalar text" = ns$.is_text(name))
-  text <- paste(c("flowers |>",
+            "name must be scalar text" = ns$.is_text(name),
+            "text must be NULL or one string" = is.null(text) || ns$.is_text(text))
+  if (is.null(text)) text <- paste(c("flowers |>",
     "  subset(!is.na(Sepal.Width)) |>",
     "  transform(ratio = Sepal.Length / Sepal.Width) |>",
-    "  head(6L)  # Tab completes names; F1 opens shortcuts"), collapse = "\n")
+    "  head(6L)  # Tab completes names; F1 opens function help"), collapse = "\n")
   state <- ns$.editor_state(text)
+  if (!is.null(cursor)) {
+    stopifnot("cursor must identify a grapheme boundary" = ns$.is_count(cursor) &&
+                cursor <= length(state$chars))
+    state$cursor <- cursor
+  }
   size <- c(width = as.integer(width), height = as.integer(height))
   editor <- ns$.editor_display_frame(state, size, "r> ", "+  ", character(), config)
   frame <- ns$.screen_compose(config$screen, editor, config, width, height)
@@ -95,10 +106,13 @@ export_frame <- function(config, width, height, name) {
             "explicit truecolor must survive disabled cli color detection" =
               any(grepl("38;2;", frame$lines, fixed = TRUE)))
   metadata <- list(generator = "prismrepl actual .screen_compose output",
+    package_version = package_version, r_version = as.character(getRversion()),
     theme = config$theme$name, width = width, height = height,
     cursor_row = frame$cursor_row, cursor_column = frame$cursor_column,
     default_fg = config$theme$palette$foreground,
     default_bg = config$theme$palette$background,
+    editor_source = text, editor_cursor = state$cursor,
+    match_pairs = config$match_pairs, rainbow = config$rainbow,
     sidebar = frame$layout$sidebar, cells = cells)
   jsonlite::write_json(metadata, file.path(destination, paste0(name, ".json")),
                        auto_unbox = TRUE, pretty = FALSE)
@@ -130,6 +144,7 @@ export_panel <- function(lines, config, size, name, cursor = NULL) {
   stopifnot("panel must fit the requested terminal" = length(lines) == size[["height"]] &&
               all(vapply(lines, ns$.screen_width, numeric(1L)) <= size[["width"]] - 1L))
   metadata <- list(generator = "prismrepl actual viewer compositor output", theme = config$theme$name,
+    package_version = package_version, r_version = as.character(getRversion()),
     width = size[["width"]], height = size[["height"]],
     cursor_row = if (is.null(cursor)) 0L else cursor$row,
     cursor_column = if (is.null(cursor)) 0L else cursor$column,
@@ -156,7 +171,7 @@ doc_lines <- ns$.help_rich_text("base::mean", NULL, doc_size[["width"]] - 3L, pa
 doc_hits <- ns$.panel_matches(doc_lines, "mean")
 doc_frame <- ns$.panel_frame(doc_lines, "Help: base::mean", panel_cfg, doc_size,
   caption = ns$.footer_hints(c("Up/Down" = "line", "PageUp/PageDown" = "page", "/" = "search",
-    "n/p" = "match", "F1" = "keys", q = "close"), panel_cfg, doc_size[["width"]] - 2L),
+    "n/p" = "match", "F2" = "keys", q = "close"), panel_cfg, doc_size[["width"]] - 2L),
   footer = paste0("Search: mean  Match 1/", ns$.panel_match_count(doc_hits),
     "  All occurrences highlighted; n/p moves between them"),
   styled = TRUE, matches = doc_hits, current_match = 1L, active_rows = integer())
@@ -188,6 +203,18 @@ stopifnot("data-frame column must open directly as a value preview" =
 export_panel(ns$.explorer_frame(column_preview, panel_cfg, c(width = 132L, height = 25L)),
   panel_cfg, c(width = 132L, height = 25L), "explorer-column-midnight")
 
+table_preview <- ns$.explorer_state(datasets::iris, label = "flowers", limit = 200L)
+table_preview <- ns$.explorer_apply(table_preview,
+  list(type = "key", key = "tab", modifiers = character()), panel_cfg)
+table_preview <- ns$.explorer_apply(table_preview,
+  list(type = "text", key = "", text = "/", modifiers = character()), panel_cfg)
+table_preview <- ns$.explorer_apply(table_preview,
+  list(type = "text", key = "", text = "VIRGINICA", modifiers = character()), panel_cfg)
+stopifnot("Preview filter must retain original matching row positions" =
+  identical(ns$.explorer_preview_load(table_preview$stack[[1L]])$indices, 101:150))
+export_panel(ns$.explorer_frame(table_preview, panel_cfg, c(width = 132L, height = 25L)),
+  panel_cfg, c(width = 132L, height = 25L), "explorer-filter-midnight")
+
 original_function <- function(x, na.rm = TRUE) {
   stopifnot("x must be numeric" = is.numeric(x),
             "na.rm must be a logical scalar" = is.logical(na.rm) && length(na.rm) == 1L)
@@ -208,3 +235,52 @@ editor_size <- c(width = 122L, height = 24L)
 editor_frame <- ns$.function_editor_frame(function_editor, "describe_numbers", panel_cfg, editor_size)
 export_panel(editor_frame$lines, panel_cfg, editor_size, "editor-midnight",
   cursor = list(row = editor_frame$cursor_row, column = editor_frame$cursor_column))
+
+#' Export Raw-String Pair Focus Independently of Rainbow Coloring
+#' @param theme The white or black built-in theme.
+#' @return A real 100-column, 24-row compositor frame.
+#' @noRd
+export_pair_focus <- function(theme) {
+  stopifnot("theme must select a neutral light or dark palette" = theme %in% c("white", "black"))
+  cfg <- ns$repl_config(theme = theme, color = TRUE, color_depth = 16777216L,
+    unicode = TRUE, ui = "fullscreen", sidebar = FALSE, editor_height = 6L,
+    settings_file = NULL, persist = FALSE, rainbow = FALSE, match_pairs = TRUE,
+    status = c("process_memory", "objects", "memory"))
+  cfg$screen <- ns$screen_state()
+  cfg$screen$active <- TRUE
+  cfg$highlight_cache <- new.env(parent = emptyenv())
+  env <- new.env(parent = baseenv())
+  env$flowers <- datasets::iris
+  commands <- c("names(flowers)",
+    'message("Cursor pair focus: on. Rainbow delimiter colors: off.")')
+  invisible(lapply(commands, function(code) {
+    ns$screen_append(cfg$screen, paste0(ns$style_text("r> ", "prompt", cfg$theme, TRUE),
+      ns$highlight_r(code, cfg$theme, TRUE, rainbow = FALSE)), "input", ansi = TRUE)
+    result <- ns$.with_screen_output(function(local) ns$evaluate_r(code, env, local),
+      cfg, paint = FALSE)
+    stopifnot("pair-focus transcript must evaluate successfully" = is.null(result$error))
+    NULL
+  }))
+  inventory <- ns$workspace_objects(env, sizes = "memory" %in% cfg$status)
+  process_memory <- ns$.process_memory()
+  cfg$screen$sidebar <- ns$.session_sidebar(env, cfg, inventory, process_memory)
+  cfg$screen$status <- ns$.session_status(env, cfg, inventory, process_memory)
+  text <- paste(c('notes <- r"---{',
+    '  Brackets stay literal: (x[1]) and {y}',
+    '  Quotes stay literal: "text" and \'text\'',
+    '}---"'), collapse = "\n")
+  # Put the cursor on the first dash inside the compound opening delimiter.
+  cursor <- as.integer(regexpr('r"---{', text, fixed = TRUE)[[1L]] + 1L)
+  state <- ns$.editor_state(text)
+  state$cursor <- cursor
+  focus <- ns$.editor_pair_focus(state, text, cfg)
+  stopifnot("raw delimiters must be recognized as complete endpoint spans" = nrow(focus) == 2L &&
+              all(focus[, 2L] - focus[, 1L] + 1L == c(6L, 5L)),
+            "rainbow must stay off while cursor pair focus is on" = !cfg$rainbow && cfg$match_pairs)
+  out <- export_frame(cfg, 100L, 24L, paste0("pair-focus-", theme), text, cursor)
+  stopifnot("the focused role must survive full-screen composition" = any(grepl(
+    paste0("\033[", cfg$theme$colors[["pair_match"]], "m"), out$lines, fixed = TRUE)))
+  out
+}
+
+invisible(lapply(c("white", "black"), export_pair_focus))

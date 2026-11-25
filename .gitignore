@@ -9,4 +9,5 @@
 *.tgz
 *.zip
 *.Rcheck/
+/check/
 .DS_Store

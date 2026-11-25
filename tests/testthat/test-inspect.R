@@ -69,3 +69,35 @@ test_that("Git status is local and reports tracked changes", {
   expect_true(dirty$dirty)
   expect_equal(dirty$tracked_changes, 1L)
 })
+
+test_that("Git identity survives a failed or timed-out status query", {
+  root <- normalizePath(tempdir(), winslash = "/", mustWork = TRUE)
+  invisible(lapply(c(1L, 124L), function(exit_status) {
+    inspect <- git_info
+    environment(inspect) <- list2env(list(
+      Sys.which = function(command) "git",
+      system2 = function(command, args, ...) {
+        if ("rev-parse" %in% args) root else structure(character(), status = exit_status)
+      }), parent = environment(git_info))
+    result <- inspect(tempdir())
+    expect_true(result$available)
+    expect_true(result$is_repo)
+    expect_identical(result$root, root)
+    expect_identical(result$branch, "")
+    expect_identical(result$dirty, NA)
+    expect_identical(result$ahead, NA_integer_)
+    expect_identical(result$behind, NA_integer_)
+    expect_identical(result$tracked_changes, NA_integer_)
+    expect_match(result$error, "unavailable or timed out", fixed = TRUE)
+  }))
+})
+
+test_that("session status clearly reports unavailable Git status", {
+  status <- .session_status
+  environment(status) <- list2env(list(git_info = function() list(
+    is_repo = TRUE, root = tempdir(), branch = "", dirty = NA,
+    ahead = NA_integer_, behind = NA_integer_, error = "Git status unavailable or timed out.")),
+    parent = environment(.session_status))
+  config <- structure(list(status = "git"), class = "prismrepl_config")
+  expect_identical(status(new.env(parent = emptyenv()), config), "git: status unavailable")
+})

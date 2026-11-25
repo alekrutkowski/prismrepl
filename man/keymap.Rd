@@ -16,7 +16,8 @@ A data frame with \code{key} and \code{action} columns.
 The enhanced editor uses these defaults. A terminal can reserve shortcuts or
 transmit two shortcuts as the same bytes. In particular, Ctrl+Shift+M needs
 a terminal with extended keyboard reporting; Alt+M is the portable fallback.
-F1 opens this list inside the editor. Escape closes overlays.
+F1 opens documentation for the function under the cursor; F2 opens this list.
+Escape closes overlays.
 }
 \examples{
 keymap()

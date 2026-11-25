@@ -1,10 +1,10 @@
 palette_fixture <- function() data.frame(
   id = c("view", "edit", "attach", "help"),
-  command = c(":view NAME", ":edit NAME", ":attach PACKAGE", ":help"),
+  command = c(":view NAME", ":edit NAME", ":attach PACKAGE ...", ":help"),
   alias = c("v", "ed", "a", "h"),
   group = c("Workspace", "Workspace", "Packages", "Discover"),
   description = c("Inspect nested object values and attributes.", "Modify a function and save explicitly.",
-                  "Load an installed package into the session.", "Search commands and descriptions."),
+                  "Load installed packages into the session.", "Search commands and descriptions."),
   insert = c(":view ", ":edit ", ":attach ", ":help"), stringsAsFactors = FALSE)
 
 test_that("palette search includes descriptions, aliases and groups", {

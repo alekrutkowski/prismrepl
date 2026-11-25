@@ -20,6 +20,7 @@ extern SEXP C_parse_status(SEXP);
 extern SEXP C_binding_info(SEXP, SEXP);
 extern SEXP C_clipboard_read(SEXP);
 extern SEXP C_clipboard_write(SEXP);
+extern SEXP C_process_memory(void);
 
 static const R_CallMethodDef call_methods[] = {
     {"C_term_open", (DL_FUNC) &C_term_open, 2},
@@ -38,6 +39,7 @@ static const R_CallMethodDef call_methods[] = {
     {"C_binding_info", (DL_FUNC) &C_binding_info, 2},
     {"C_clipboard_read", (DL_FUNC) &C_clipboard_read, 1},
     {"C_clipboard_write", (DL_FUNC) &C_clipboard_write, 1},
+    {"C_process_memory", (DL_FUNC) &C_process_memory, 0},
     {NULL, NULL, 0}
 };
 

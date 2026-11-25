@@ -1,6 +1,7 @@
 #define R_NO_REMAP
 #include <R.h>
 #include <Rinternals.h>
+#include <Rversion.h>
 #include <R_ext/Utils.h>
 #include <R_ext/Parse.h>
 #include <stdlib.h>
@@ -1035,9 +1036,131 @@ SEXP C_parse_status(SEXP text) {
     return result;
 }
 
+#if R_VERSION < R_Version(4, 6, 0)
+typedef struct {
+    SEXP environment;
+    SEXP symbol;
+    int missing;
+} binding_value_query;
+
+static SEXP binding_value_read(void *data) {
+    binding_value_query *query = (binding_value_query *) data;
+    return R_getVar(query->symbol, query->environment, FALSE);
+}
+
+static SEXP binding_value_error(SEXP condition, void *data) {
+    if (Rf_inherits(condition, "getVarExError")) {
+        ((binding_value_query *) data)->missing = 1;
+        return R_NilValue;
+    }
+    /* Do not turn unrelated failures into missing-binding metadata. */
+    SEXP stop = R_getVar(Rf_install("stop"), R_BaseEnv, FALSE);
+    SEXP call = PROTECT(Rf_lang2(stop, condition));
+    Rf_eval(call, R_BaseEnv);
+    UNPROTECT(1);
+    return R_NilValue;
+}
+
+/* Call only after active and unevaluated bindings have been excluded. R's
+   public getter rejects a directly missing binding, but successfully returns
+   R_MissingArg when that is the cached value of an already-forced promise.
+   This works in .GlobalEnv too, without cloning or relying on a promise's
+   expression. The probe is needed only for rare missing-valued candidates. */
+static int binding_value_is_missing(SEXP environment, SEXP symbol) {
+    binding_value_query query = {environment, symbol, 0};
+    (void) R_tryCatchError(binding_value_read, &query,
+                          binding_value_error, &query);
+    return query.missing;
+}
+
+/* R 4.5 has no public API for recognizing an unevaluated promise. Use rlang's
+   exported, vectorized R API for that step rather than inspecting R internals.
+   Active bindings are removed first; env_get_list then sees only values and
+   already-forced promises. This also preserves missing arguments without
+   evaluating them. No object payloads or environment bindings are copied. */
+static SEXP binding_info_compat(SEXP environment, SEXP names) {
+    const R_xlen_t length = XLENGTH(names);
+    SEXP result = PROTECT(Rf_allocVector(STRSXP, length));
+    SEXP missing_kind = PROTECT(Rf_mkChar("missing"));
+    SEXP active_kind = PROTECT(Rf_mkChar("active"));
+    SEXP value_kind = PROTECT(Rf_mkChar("value"));
+    SEXP promise_kind = PROTECT(Rf_mkChar("promise"));
+    R_xlen_t remaining = 0;
+
+    for (R_xlen_t i = 0; i < length; ++i) {
+        SEXP name = STRING_ELT(names, i);
+        SEXP kind = missing_kind;
+        if (name != NA_STRING && LENGTH(name) != 0) {
+            SEXP symbol = Rf_installChar(name);
+            if (R_existsVarInFrame(environment, symbol)) {
+                if (R_BindingIsActive(symbol, environment)) kind = active_kind;
+                else { kind = value_kind; ++remaining; }
+            }
+        }
+        SET_STRING_ELT(result, i, kind);
+    }
+
+    if (remaining) {
+        SEXP pending = PROTECT(Rf_allocVector(STRSXP, remaining));
+        R_xlen_t *indices = (R_xlen_t *) R_alloc((size_t) remaining, sizeof(R_xlen_t));
+        R_xlen_t position = 0;
+        for (R_xlen_t i = 0; i < length; ++i) {
+            if (STRING_ELT(result, i) == value_kind) {
+                SET_STRING_ELT(pending, position, STRING_ELT(names, i));
+                indices[position++] = i;
+            }
+        }
+
+        /* Both functions are exported by rlang and declared as imports. */
+        SEXP package = PROTECT(Rf_mkString("rlang"));
+        SEXP namespace = PROTECT(R_FindNamespace(package));
+        SEXP lazy_function = R_getVar(Rf_install("env_binding_are_lazy"), namespace, FALSE);
+        SEXP lazy_call = PROTECT(Rf_lang3(lazy_function, environment, pending));
+        SEXP lazy = PROTECT(Rf_eval(lazy_call, R_BaseEnv));
+        if (TYPEOF(lazy) != LGLSXP || XLENGTH(lazy) != remaining)
+            Rf_error("Invalid lazy-binding metadata from rlang.");
+
+        position = 0;
+        for (R_xlen_t i = 0; i < remaining; ++i) {
+            int delayed = LOGICAL_ELT(lazy, i);
+            if (delayed == NA_LOGICAL)
+                Rf_error("Missing lazy-binding metadata from rlang.");
+            if (delayed) SET_STRING_ELT(result, indices[i], promise_kind);
+            else indices[position++] = indices[i];
+        }
+
+        if (position) {
+            SEXP ordinary = PROTECT(Rf_allocVector(STRSXP, position));
+            for (R_xlen_t i = 0; i < position; ++i)
+                SET_STRING_ELT(ordinary, i, STRING_ELT(names, indices[i]));
+            SEXP get_function = R_getVar(Rf_install("env_get_list"), namespace, FALSE);
+            SEXP get_call = PROTECT(Rf_lang3(get_function, environment, ordinary));
+            SEXP values = PROTECT(Rf_eval(get_call, R_BaseEnv));
+            if (TYPEOF(values) != VECSXP || XLENGTH(values) != position)
+                Rf_error("Invalid value-binding metadata from rlang.");
+            for (R_xlen_t i = 0; i < position; ++i) {
+                if (VECTOR_ELT(values, i) == R_MissingArg &&
+                    binding_value_is_missing(environment,
+                        Rf_installChar(STRING_ELT(names, indices[i]))))
+                    SET_STRING_ELT(result, indices[i], missing_kind);
+            }
+            UNPROTECT(3);
+        }
+        UNPROTECT(5);
+    }
+
+    Rf_setAttrib(result, R_NamesSymbol, names);
+    UNPROTECT(5);
+    return result;
+}
+#endif
+
 SEXP C_binding_info(SEXP environment, SEXP names) {
     if (TYPEOF(environment) != ENVSXP || TYPEOF(names) != STRSXP)
         Rf_error("Expected an environment and character names.");
+#if R_VERSION < R_Version(4, 6, 0)
+    return binding_info_compat(environment, names);
+#else
     SEXP result = PROTECT(Rf_allocVector(STRSXP, XLENGTH(names)));
     for (R_xlen_t i = 0; i < XLENGTH(names); ++i) {
         SEXP name = STRING_ELT(names, i);
@@ -1059,4 +1182,5 @@ SEXP C_binding_info(SEXP environment, SEXP names) {
     Rf_setAttrib(result, R_NamesSymbol, names);
     UNPROTECT(1);
     return result;
+#endif
 }

@@ -1,1 +1,0 @@
-PASS: q() exits R, restores the main screen and cursor color, disables mouse reporting, and restores all terminal input settings

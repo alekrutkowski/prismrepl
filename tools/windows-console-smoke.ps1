@@ -28,10 +28,11 @@ function Get-PrismPlainText([string] $text) {
     return $text.Replace("`r", '')
 }
 
-function Wait-PrismText([string] $marker) {
+function Wait-PrismText([string] $marker, [int] $After = 0) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
-        $plain = Get-PrismPlainText $session.Snapshot()
+        $snapshot = $session.Snapshot()
+        $plain = Get-PrismPlainText $snapshot.Substring([Math]::Min($After, $snapshot.Length))
         if ($plain.Contains($marker)) { return }
         if ($session.HasExited) { break }
         Start-Sleep -Milliseconds 50
@@ -117,6 +118,31 @@ try {
     Wait-PrismText ('NATIVE_FRAME_' + [char]0x6f22 + [char]0x5b57 + ' ' + [char]::ConvertFromUtf32(0x1f9ea))
     Wait-PrismText 'r> '
     Wait-PrismCursorColor '#FFFFFF'
+    Wait-PrismText 'R RAM:'
+
+    # A shell program receives the ordinary terminal and quoted paths stay
+    # intact. Generated output differs from the typed command to avoid an echo
+    # being mistaken for execution. The fixtures belong to this test only.
+    $shellScript = Join-Path $temporary 'shell program.cmd'
+    [IO.File]::WriteAllText($shellScript,
+        "@echo off`r`necho SHELL_ARGS_%~1_%~2`r`nexit /b 0`r`n", [Text.ASCIIEncoding]::new())
+    $shellOffset = $session.Snapshot().Length
+    Send-PrismExpression (':sh "' + $shellScript + '" "one two" "three four"')
+    Wait-PrismText 'SHELL_ARGS_one two_three four' $shellOffset
+    Wait-PrismText 'Press Enter to return to Prism' $shellOffset
+    $resumeOffset = $session.Snapshot().Length
+    $session.Send("`r")
+    Wait-PrismText 'r> ' $resumeOffset
+
+    $shellOffset = $session.Snapshot().Length
+    Send-PrismExpression ':shell exit /b 7'
+    Wait-PrismText 'Shell exited with status 7.' $shellOffset
+    Wait-PrismText 'Press Enter to return to Prism' $shellOffset
+    $resumeOffset = $session.Snapshot().Length
+    $session.Send([string][char]3)
+    Wait-PrismText 'r> ' $resumeOffset
+    Send-PrismExpression 'stopifnot(identical(.Last.value,7L)); cat(paste0("SHELL_", "RECOVERED\n"))'
+    Wait-PrismText 'SHELL_RECOVERED' $resumeOffset
 
     # Both theme changes use an empty input prompt at the same terminal size.
     # These assertions verify the real Rterm -> ConPTY output path; the R model
@@ -219,7 +245,7 @@ try {
     if (-not $cursorControls.Count -or $cursorControls[$cursorControls.Count - 1].Groups[1].Value -ne '112') {
         throw 'Leaving the REPL did not forward the cursor-color reset through ConPTY.'
     }
-    Write-Output 'PASS: Windows ConPTY theme-aware cursor contrast and reset, buffered Unicode frames, mouse input, Ctrl+J, output lifetime, restoration, conditions, paste, completion, pipe, and resize.'
+    Write-Output 'PASS: Windows ConPTY process RAM, shell quoting/status/pause recovery, theme-aware cursor contrast and reset, buffered Unicode frames, mouse input, Ctrl+J, output lifetime, restoration, conditions, paste, completion, pipe, and resize.'
 } finally {
     if ($session) {
         try {

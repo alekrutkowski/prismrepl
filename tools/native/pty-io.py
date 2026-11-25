@@ -7,15 +7,19 @@ import pty
 import select
 import struct
 import subprocess
+import sys
 import termios
 import time
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pty_support import terminal_snapshot
 
 
 def main():
     root = Path(__file__).resolve().parents[2]
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
-    original = termios.tcgetattr(slave)
+    original = terminal_snapshot(slave)
     process = subprocess.Popen(
         [os.environ.get("PRISM_R", "R"), "--vanilla", "--slave",
          "-f", str(root / "tools/native/pty-io.R")],
@@ -46,7 +50,7 @@ def main():
         os.write(master, b"\x1b[<0;12;8Mx")
         expect(b"NATIVE_IO_OK")
         assert process.wait(timeout=5) == 0
-        assert termios.tcgetattr(slave) == original, "Terminal input modes were not restored"
+        assert terminal_snapshot(slave) == original, "Terminal input modes were not restored"
         assert b"\x1b[?1000h" in output and b"\x1b[?1000l" in output
         assert b"\x1b[?1002h" in output and b"\x1b[?1002l" in output
         assert b"\x1b[?1006h" in output and b"\x1b[?1006l" in output

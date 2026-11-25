@@ -1,7 +1,8 @@
 """Exercise the FILES sidebar, file browser and mouse clipboard through a PTY.
 
-Run against the installed package; PRISM_R selects R. Temporary scripts and a
-local fake Wayland clipboard keep all test effects inside a disposable fixture.
+Run against the installed package; PRISM_R selects R. Temporary scripts,
+Unicode INI/log files and a local fake Wayland clipboard keep all test effects
+inside a disposable fixture.
 The terminal model is reused without executing the fullscreen test itself.
 """
 import ast
@@ -19,6 +20,7 @@ import tempfile
 import termios
 import time
 import unicodedata
+from pty_support import terminal_snapshot
 
 
 source = Path(__file__).with_name("pty-fullscreen.py")
@@ -64,7 +66,7 @@ for name in ("wl-copy", "wl-paste"):
 
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 34, 132, 0, 0))
-original_modes = termios.tcgetattr(slave)
+original_modes = terminal_snapshot(slave)
 model = Screen(34, 132)
 raw = bytearray()
 environment = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor",
@@ -227,6 +229,62 @@ try:
     wait_for("FILE_SOURCED")
     assert sentinel.read_text(encoding="utf-8").strip() == "approved"
 
+    # Extension alone must not classify configuration files or logs as binary.
+    # In particular, Windows UTF-16LE text contains zero bytes before decoding.
+    previews = root / "text previews"
+    previews.mkdir()
+    text_cases = (
+        ("utf8 settings.ini", "[settings]\r\nname = café\r\ncity = Łódź\r\n".encode("utf-8"),
+         ("[settings]", "name = café", "city = Łódź")),
+        ("utf8 session.log", "INFO Unicode log\nRésumé: Δ = 3\ninput = 入力\n".encode("utf-8"),
+         ("INFO Unicode log", "Résumé: Δ = 3", "input = 入力")),
+        ("utf16 settings.ini", codecs.BOM_UTF16_LE +
+         "[windows]\r\ncaption = café\r\ncity = Łódź\r\n".encode("utf-16-le"),
+         ("[windows]", "caption = café", "city = Łódź")),
+        ("utf16 session.log", codecs.BOM_UTF16_LE +
+         "INFO UTF-16LE logging\r\npath = C:\\Users\\Alek\\café\r\nstatus = 已完成\r\n".encode("utf-16-le"),
+         ("INFO UTF-16LE logging", "path = C:\\Users\\Alek\\café", "status = 已完成")),
+        ("utf16 without BOM.log",
+         "INFO bare UTF-16LE\r\ncaption = café\r\nstate = ready\r\n".encode("utf-16-le"),
+         ("INFO bare UTF-16LE", "caption = café", "state = ready")),
+    )
+    original_files = {}
+    for name, content, markers in text_cases:
+        path = previews / name
+        path.write_bytes(content)
+        original_files[path] = content
+        expression(":files " + str(path))
+        wait_files()
+        wait_for("Read-only preview")
+        assert "Binary file:" not in model.text(), model.text()
+        for marker in markers:
+            wait_for(marker)
+        assert "\ufffd" not in model.text(), model.text()
+        send("\x1b[200~unapproved_edit = TRUE\x1b[201~")
+        wait_for("This file preview is read-only.")
+        assert path.read_bytes() == content, "Preview paste modified the file"
+        send("\x1b")
+        wait_until(lambda: "Read-only preview" not in model.text() and
+                   str(previews) in model.text().splitlines()[1],
+                   "the parent directory after a Unicode text preview")
+        send("q")
+        wait_for("PRISM REPL")
+
+    # A textual-looking suffix must not make real NUL-bearing binary data text.
+    binary_log = previews / "binary.log"
+    binary_log.write_bytes(b"binary prefix\x00\x01\x02\xff\x00")
+    original_files[binary_log] = binary_log.read_bytes()
+    expression(":files " + str(binary_log))
+    wait_files()
+    wait_for("Read-only preview")
+    wait_for("Binary file: text preview is unavailable.")
+    send("\x1b")
+    wait_until(lambda: "Read-only preview" not in model.text(), "the directory after a binary preview")
+    send("q")
+    wait_for("PRISM REPL")
+    assert all(path.read_bytes() == content for path, content in original_files.items()), \
+        "File browsing changed fixture bytes"
+
     # Select two columns from real transcript rows and paste into the editor.
     expression('cat(paste0("COPY_","A 12345\\nCOPY_","B 67890\\n"))')
     wait_for("COPY_A 12345")
@@ -252,12 +310,13 @@ try:
     wait_for("FILES_PTY_DONE")
     process.wait(timeout=10)
     assert process.returncode == 0, process.returncode
-    assert termios.tcgetattr(slave) == original_modes
+    assert terminal_snapshot(slave) == original_modes
     assert model.enters == model.leaves == 1
     assert model.alternate_scrolls == 0
     assert not model.bad_cursor, model.bad_cursor
     print("PASS: crowded-workspace FILES sidebar, staged sidebar clicks, directory navigation,")
     print("blank-row hit testing, right-paste filtering, read-only R preview, spaced paths,")
+    print("UTF-8/UTF-16LE INI and log previews with Unicode and BOM/BOMless text, unchanged bytes, binary-log rejection,")
     print("cancelled/approved cd and source, Ctrl-drag rectangular copy, editable right-paste,")
     print("one alternate screen, no rolling redraw and exact terminal restoration.")
 except BaseException:

@@ -1,6 +1,6 @@
 # Prism REPL guide
 
-Version 0.5.1.
+Version 0.6.4.
 
 ## Capabilities at a glance
 
@@ -9,14 +9,19 @@ Version 0.5.1.
   **you review it, supply arguments, and press Enter to execute it**.
 - Every command has an unambiguous one-letter or two-letter alias. Submitted
   colon commands and ordinary R expressions share the same searchable history.
-- R syntax highlighting includes optional rainbow matching delimiters. Optional
-  automatic pairing inserts closing parentheses and quotes as you type. Both
-  options start on and can be changed independently.
+- R syntax highlighting includes rainbow delimiters, a distinct highlight for
+  the matching pair at the cursor, and automatic insertion of closing brackets
+  and quotes. All three options start on and can be changed independently.
+- F1 opens local documentation for the function at the cursor, including
+  namespace-qualified names. Closing help restores the draft and cursor.
+  F2 shows the effective shortcut cheatsheet.
 - The object explorer stops at atomic vectors, including data-frame columns. Column headings and rows
   share the same cell positions, including wide Unicode names.
 - Messages, warnings and errors keep all their lines in one labeled card.
 - `:attach`, `:install`, `:installgh`, `:source`, `:files` and `:edit` cover
   common package, file and function-editing tasks.
+- `:shell`, or `:sh`, runs a system shell command directly, without wrapping
+  it in an R string. Shell pipes, redirects and ordinary argument quotes work.
 - The sidebar has WORKSPACE, PACKAGES and FILES modules. Each module receives
   visible space even when another list is long, with a distinct command hint bar.
 - Documentation has bold headings, italics, styled links and highlighted R code.
@@ -38,12 +43,12 @@ session pane within the available space.
 
 ## Install and start
 
-Use R 4.6 or newer. Install the three external runtime dependencies, then the
+Use R 4.5.0 or newer. Install the five external runtime dependencies, then the
 source archive:
 
 ```r
-install.packages(c("cli", "stringi", "utf8"))
-install.packages("prismrepl_0.5.1.tar.gz", repos = NULL, type = "source")
+install.packages(c("cli", "processx", "rlang", "stringi", "utf8"))
+install.packages("prismrepl_0.6.4.tar.gz", repos = NULL, type = "source")
 prismrepl::repl()
 ```
 
@@ -92,11 +97,11 @@ input and conditions to the available width.
 
 The sidebar has three modules:
 
-| Module    | What it shows                                                  | What a click stages                             |
-| --------- | -------------------------------------------------------------- | ----------------------------------------------- |
-| WORKSPACE | Object names, types/classes, dimensions and optional sizes     | `:view NAME`, or `:objects` for more items      |
-| PACKAGES  | Attached packages                                              | `:docs PACKAGE`, or the full package list       |
-| FILES     | Parent folder, subfolders and files in the current directory   | `:cd PATH` for folders, `:files PATH` for files |
+| Module    | What it shows                                                             | What a click stages                             |
+| --------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| WORKSPACE | R process RAM, object names, types/classes, dimensions and optional sizes | `:view NAME`, or `:objects` for more items      |
+| PACKAGES  | Attached packages                                                         | `:docs PACKAGE`, or the full package list       |
+| FILES     | Parent folder, subfolders and files in the current directory              | `:cd PATH` for folders, `:files PATH` for files |
 
 A click stages a command for review in the input field. A drag selects text.
 The sidebar refreshes after each submitted expression or command, so it follows
@@ -112,11 +117,29 @@ it still needs Enter in the main input field before execution.
 Use `:sidebar` to choose whether to show the pane, or apply `:sidebar off` or
 `:sidebar on` directly. `:status` opens a field selector: Space toggles a field,
 `a` selects or clears all fields, and Enter applies the selection, including
-an empty selection. You can also enter `:status directory git objects packages memory`
+an empty selection. You can also enter `:status process_memory directory git objects packages memory`
 or `:status none` directly. These display choices last for the current session.
-Object memory is the approximate sum
-of `object.size()` results, not process resident memory; shared storage may be
-counted more than once. Git inspection is read-only and uses an optional Git
+
+**Total R memory is shown by default** as `R RAM: ... MiB` or `GiB`, both in
+the status line and at the top of WORKSPACE. The `process_memory` field reports
+the operating system's current resident-memory estimate for this R process,
+including R itself, loaded libraries and native allocations. It includes shared
+resident pages, excludes swapped-out memory and other processes, and is not a
+lifetime peak. It refreshes when the prompt returns after an expression or
+command, using one snapshot for both locations. Reading the counter neither
+forces garbage collection nor starts a subprocess. The native counters use the
+[Windows working set](https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters),
+[Linux resident pages](https://www.kernel.org/doc/html/latest/filesystems/proc.html),
+or the equivalent macOS task information.
+
+The separate, optional `memory` field shows the approximate sum of workspace
+`object.size()` results and per-object sizes. Shared storage can be counted
+more than once, and some native allocations are absent from that sum. Object
+size calculation stays off by default. Use `:status process_memory directory git`
+for the default status fields, or add `memory` to display both measurements.
+If a process-memory counter is unavailable, Prism says so explicitly.
+
+Git inspection is read-only and uses an optional Git
 executable. It reports branch and tracked-file changes without refreshing on
 every keystroke.
 
@@ -134,36 +157,76 @@ marks. Wide characters count by terminal cells when placing the cursor.
 Click in the input field to place the cursor precisely. Bracketed paste inserts
 text without executing it; review pasted code before pressing Enter.
 
-| Default shortcut         | Action                                                     |
-| ------------------------ | ---------------------------------------------------------- |
-| Enter                    | Submit a complete expression or colon command              |
-| Ctrl+J                   | Insert a newline                                           |
-| Shift+Enter              | Additional newline shortcut when reported by the terminal  |
-| Tab / Shift+Tab          | Complete names / cycle candidates in the other direction   |
-| Ctrl+R                   | Search whole history entries; repeat to cycle matches      |
-| Ctrl+P / Ctrl+N          | Recall previous / next history entry                       |
-| Ctrl+Left / Ctrl+Right   | Move by word                                               |
-| Home / End               | Move to the start / end of the logical line                |
-| Ctrl+A / Ctrl+E          | Move to the beginning / end of the expression              |
-| Ctrl+K / Ctrl+U          | Cut to line end / line start                               |
-| Ctrl+W / Ctrl+Y          | Cut previous word / reinsert the last cut                  |
-| Ctrl+C                   | Cancel pending input; during evaluation, interrupt R       |
-| Ctrl+D                   | Exit on empty input; otherwise delete forward              |
-| Ctrl+Shift+M or Alt+M    | Insert the selected pipe operator                          |
-| PageUp / PageDown        | Scroll the transcript                                      |
-| Ctrl+L                   | Request a full redraw                                      |
-| F1                       | Open the effective shortcut cheatsheet                     |
+| Default shortcut       | Action                                                    |
+| ---------------------- | --------------------------------------------------------- |
+| Enter                  | Submit a complete expression or colon command             |
+| Ctrl+J                 | Insert a newline                                          |
+| Shift+Enter            | Additional newline shortcut when reported by the terminal |
+| Tab / Shift+Tab        | Complete names / cycle candidates in the other direction  |
+| Ctrl+R                 | Search whole history entries; repeat to cycle matches     |
+| Ctrl+P / Ctrl+N        | Recall previous / next history entry                      |
+| Ctrl+Left / Ctrl+Right | Move by word                                              |
+| Home / End             | Move to the start / end of the logical line               |
+| Ctrl+A / Ctrl+E        | Move to the beginning / end of the expression             |
+| Ctrl+K / Ctrl+U        | Cut to line end / line start                              |
+| Ctrl+W / Ctrl+Y        | Cut previous word / reinsert the last cut                 |
+| Ctrl+C                 | Cancel pending input; during evaluation, interrupt R      |
+| Ctrl+D                 | Exit on empty input; otherwise delete forward             |
+| Ctrl+Shift+M or Alt+M  | Insert the selected pipe operator                         |
+| PageUp / PageDown      | Scroll the transcript                                     |
+| Ctrl+L                 | Request a full redraw                                     |
+| F1                     | Open documentation for the function at the cursor         |
+| F2                     | Open the effective shortcut cheatsheet                    |
+
+Press **F2** in the main console to open the full shortcuts view immediately.
+It lists the effective bindings, including your saved remappings. Scroll with
+the arrow and paging keys, or press `/` to search shortcut names and descriptions.
+Escape or `q` closes the view and restores your unfinished expression and
+cursor position. Opening the cheatsheet does not submit the expression.
 
 `:keys` shows the current bindings; choosing an action with Enter stages its
 `:bind ACTION ` command for editing. The `max_paste` and `max_lines` settings
 bound the entire editable expression, including typing, completion, recall and
 paste. A rejected insertion preserves the previous buffer and explains why.
 
+### Function help at the cursor
+
+Move the cursor onto a function name and press **F1**. For example, type
+`stats::lm(mpg ~ wt, data = mtcars)`, move onto `lm`, and press F1 to read its
+installed R documentation. Plain names, namespace-qualified names, backtick
+names and documented operators are supported, even in incomplete or multiline
+input. The right edge of a name also counts as being on that name. Text inside
+comments and strings is ignored. Resolving a topic never runs the draft or
+forces a workspace binding.
+
+The rich documentation viewer keeps its search, highlighted matches and
+scrolling controls. Press Escape or `q` to close it and resume exactly where
+you were typing. The same shortcut works inside `:edit`. When no local topic is
+available, a small editor hint explains the result and the draft remains intact.
+Basic mode uses the host editor, so `:doc NAME` remains available there.
+
+Both shortcuts can be saved with `:bind function_help F1` and `:bind help F2`.
+Existing saved default F1-cheatsheet mappings migrate to this arrangement;
+custom assignments are retained. `:keys` is always available to inspect or
+change the effective mappings.
+
 ### Matching pairs and rainbow colors
 
-**Rainbow matching pairs and automatic pairing are both on by default.** They
-are independent: keep colorful matching delimiters while typing every character
-yourself, or use automatic pairing with ordinary syntax colors.
+**Cursor pair highlighting, rainbow colors and automatic pairing all start
+on.** They are independent. Cursor pair highlighting marks both ends of the
+pair at the cursor with a contrasting background, bold text and an underline.
+It works with rainbow colors switched off and follows the current theme,
+including the plain white and black themes.
+
+Move onto either end, or immediately after it, to highlight `()`, `[]`, `{}`,
+single or double quotes, and backtick names. For a raw string such as
+`r"--(literal text)--"`, the whole opening `r"--(` and closing `)--"` are
+highlighted together. The bracket forms `r"[text]"` and `r"{text}"` work too.
+Comments, escaped quotes and literal brackets inside strings do not create
+false pairs. An unfinished delimiter has no matching highlight. For a pair
+spanning several rows, each endpoint is highlighted when it is visible.
+The editor caches pair positions while the text is unchanged, so moving the
+cursor does not rescan the whole expression.
 
 Rainbow colors identify nesting levels of `()`, `[]` and `{}`, including the
 brackets in `[[...]]`. Matching single quotes, double quotes, backticks and raw
@@ -180,16 +243,19 @@ or directly before an existing word. Colon commands and their paths remain
 literal, as do pasted text, completion candidates and recalled history.
 
 ```text
+:match off
+:ma on
 :rainbow off
 :ra on
 :autopair off
 :au toggle
 ```
 
-Use `:rainbow` or `:autopair` without arguments to choose `on`, `off` or
+Use `:match`, `:rainbow` or `:autopair` without arguments to choose `on`, `off` or
 `toggle`. The current setting is marked and focused; Enter applies and saves
 the choice for future sessions. Escape or `q` cancels without changing it.
-Rainbow changes redraw visible highlighted R source immediately. These features apply to the
+Changes repaint the editor immediately; rainbow changes also recolor visible
+R source in the transcript. These features apply to the
 native inline and full-screen editors, including `:edit`; basic mode uses the
 host R console's editor.
 
@@ -251,7 +317,7 @@ without staging anything. Ctrl+U clears the query. **Tab switches between
 logical groups and alphabetical order**, while retaining the selected command
 when possible. You can start with a filter, for example `:h package`.
 
-The table below is the complete reference for all 37 commands. Aliases mean
+The table below is the complete reference for all 39 commands. Aliases mean
 exactly the same thing as their full command names; collisions use two letters.
 
 | Command                       | Alias | Group              | Purpose                                                                                                          |
@@ -265,7 +331,7 @@ exactly the same thing as their full command names; collisions use two letters.
 | `:edit NAME`                  | `:ed` | Workspace          | Edit a function in a small editor; validate and save explicitly with Ctrl+S.                                     |
 | `:rm [NAME ...]`              | `:r`  | Workspace          | Remove named objects, or select a batch interactively.                                                           |
 | `:packages`                   | `:p`  | Packages           | List attached packages and loaded namespaces.                                                                    |
-| `:attach PACKAGE`             | `:a`  | Packages           | Attach an installed package with library(); Tab completes installed package names.                               |
+| `:attach PACKAGE ...`         | `:a`  | Packages           | Attach installed packages in order with library(); stop at the first error. Tab completes each package name.     |
 | `:detach [PACKAGE ...]`       | `:de` | Packages           | Detach named packages, or select a batch; retain namespaces.                                                     |
 | `:install PACKAGE ...`        | `:i`  | Packages           | Install packages from the configured repositories; Tab uses a cached CRAN index. --refresh refreshes that index. |
 | `:installgh USER/REPO`        | `:ig` | Packages           | Install a GitHub package with remotes::install_github(); no quotes needed.                                       |
@@ -274,6 +340,7 @@ exactly the same thing as their full command names; collisions use two letters.
 | `:cd [PATH]`                  | `:c`  | Files              | Change working directory; with no path, show the current directory like :pwd.                                    |
 | `:pwd`                        | `:pw` | Files              | Show the current working directory.                                                                              |
 | `:git`                        | `:g`  | Files              | Show tracked-file Git status for the current directory.                                                          |
+| `:shell COMMAND`              | `:sh` | Files              | Run a system shell command without R-string quoting; preserve shell quotes, pipes and redirects.                 |
 | `:history [TEXT]`             | `:hi` | History and errors | Browse submitted R expressions and colon commands; optionally filter literal text.                               |
 | `:recall NUMBER`              | `:re` | History and errors | Place a numbered history entry in the input for editing and approval.                                            |
 | `:trace`                      | `:tr` | History and errors | Show the most recent error's captured call trace.                                                                |
@@ -287,6 +354,7 @@ exactly the same thing as their full command names; collisions use two letters.
 | `:bind [ACTION [KEY ...]]`    | `:b`  | Preferences        | Choose an action to stage its remapping command; explicit keys save it, and reset restores defaults.             |
 | `:unbind [ACTION]`            | `:u`  | Preferences        | Choose an action with Enter to disable its shortcuts and save the preference.                                    |
 | `:mouse [on\|off]`            | `:m`  | Preferences        | Choose and remember mouse clicks, dragging, copying, pasting and scrolling.                                      |
+| `:match [on\|off\|toggle]`    | `:ma` | Preferences        | Highlight the matching bracket or quote pair at the cursor; save the choice.                                     |
 | `:rainbow [on\|off\|toggle]`  | `:ra` | Preferences        | Choose and remember matching-parenthesis, bracket, brace and quote colors.                                       |
 | `:autopair [on\|off\|toggle]` | `:au` | Preferences        | Choose and remember automatic matching delimiters and generated-closer skipping.                                 |
 | `:ai [PROVIDER\|custom URL]`  | `:ai` | Preferences        | Choose and save the error-explanation provider with Enter; Custom can stage a URL for editing.                   |
@@ -311,17 +379,17 @@ Enter finishes the search; press Enter again to accept the focused entry.
 Escape first cancels an active search. Outside search, Escape or `q` closes
 the menu without applying a choice.
 
-| Menu command                     | What accepting an entry does                                                                             | Persistence                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `:theme`                         | Applies the theme and repaints; the last entry, `auto`, reads desktop appearance again.                  | Saved when persistence is enabled  |
-| `:ai`                            | Applies a provider; Custom uses its saved URL or stages `:ai custom ` for a new template.                | Saved after a complete choice      |
-| `:pipe`, `:mouse`                | Applies the pipe operator or mouse on/off setting.                                                       | Saved when persistence is enabled  |
-| `:rainbow`, `:autopair`          | Applies on, off or toggle to the selected editing preference.                                            | Saved when persistence is enabled  |
-| `:ui`, `:sidebar`                | Applies the console layout or shows/hides the session pane.                                              | Current session only               |
-| `:status`                        | Space toggles one field, `a` selects/clears all, and Enter applies the batch; selecting none is allowed. | Current session only               |
-| `:bind`, `:bind ACTION`, `:keys` | Stages `:bind ACTION ` so you can type a key and submit it; the reset entry stages `:bind reset`.        | Saved after submitting the command |
-| `:unbind`                        | Disables the selected action's shortcuts immediately.                                                    | Saved when persistence is enabled  |
-| `:settings`                      | Opens a setting's menu, stages custom-URL/reset commands, or displays saving/file information.           | Follows the selected setting       |
+| Menu command                      | What accepting an entry does                                                                             | Persistence                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `:theme`                          | Applies the theme and repaints; the last entry, `auto`, reads desktop appearance again.                  | Saved when persistence is enabled  |
+| `:ai`                             | Applies a provider; Custom uses its saved URL or stages `:ai custom ` for a new template.                | Saved after a complete choice      |
+| `:pipe`, `:mouse`                 | Applies the pipe operator or mouse on/off setting.                                                       | Saved when persistence is enabled  |
+| `:match`, `:rainbow`, `:autopair` | Applies on, off or toggle to the selected editing preference.                                            | Saved when persistence is enabled  |
+| `:ui`, `:sidebar`                 | Applies the console layout or shows/hides the session pane.                                              | Current session only               |
+| `:status`                         | Space toggles one field, `a` selects/clears all, and Enter applies the batch; selecting none is allowed. | Current session only               |
+| `:bind`, `:bind ACTION`, `:keys`  | Stages `:bind ACTION ` so you can type a key and submit it; the reset entry stages `:bind reset`.        | Saved after submitting the command |
+| `:unbind`                         | Disables the selected action's shortcuts immediately.                                                    | Saved when persistence is enabled  |
+| `:settings`                       | Opens a setting's menu, stages custom-URL/reset commands, or displays saving/file information.           | Follows the selected setting       |
 
 For a binding, type the shortcut after the staged command, for example
 `:bind newline F4`, then press Enter to apply it. The `:bind ACTION` form
@@ -340,16 +408,25 @@ calls print the options without waiting for input or changing settings.
 ### Attach, install and detach packages
 
 ```text
-:attach data.table
-:a data.table
+:attach data.table ggplot2 tidyr
+:a data.table ggplot2 tidyr
 :install data.table cli utf8
 :installgh r-lib/cli
 :packages
-:detach data.table
+:detach data.table ggplot2 tidyr
+:de data.table ggplot2 tidyr
 ```
 
-`:attach xxx` calls `library("xxx", character.only = TRUE)`. Tab uses installed
-packages. `:install xx yy zz` calls `install.packages(c("xx", "yy", "zz"))`,
+Both `:attach` and `:detach` accept several package names separated by spaces.
+Their short aliases are `:a` and `:de`. Tab completes the current package name
+at every position in the list.
+
+`:attach xxx yyy` calls `library(..., character.only = TRUE)` for each unique
+package in the order entered. A single name still works. Attachment stops at
+the first error, with earlier successful attachments retained, just like
+sequential `library()` calls. It does not install missing packages. Completion
+uses installed names without reading the full installed-package metadata table.
+`:install xx yy zz` calls `install.packages(c("xx", "yy", "zz"))`,
 with your configured repositories. An unset CRAN mirror uses
 `https://cloud.r-project.org`, avoiding an unexpected mirror menu.
 
@@ -362,6 +439,12 @@ retries or explicitly refreshes the index. No download happens merely from
 loading the package or constructing a configuration. Completion lists CRAN names;
 R's installer still decides compatibility, dependencies and binary availability.
 
+The background index worker is managed by `processx`. Its temporary files are
+removed after it finishes or is cancelled, and an outstanding worker is stopped
+when the REPL closes or its namespace unloads. Changing repositories cancels the
+old job before starting another; an old result cannot replace the current cache.
+Cancellation and ordinary refresh errors leave the previous valid cache available.
+
 `:installgh user/repo` calls `remotes::install_github("user/repo")`; quotes are
 optional. The usual `user/repo/subdir` and `user/repo@ref` forms also work.
 Install the optional `remotes` package first with `:install remotes` if needed.
@@ -371,8 +454,9 @@ questions use the ordinary terminal. Prism resumes when the installer returns;
 the detailed installation output remains in terminal scrollback.
 
 `:packages` distinguishes attached packages from loaded namespaces. Detaching
-removes a package from the search path while retaining its namespace. Use
-`:detach` without names for a batch selector. Core packages are protected.
+removes the named packages from the search path while retaining their
+namespaces. Packages already detached are reported without failing the batch.
+Use `:detach` without names for a batch selector. Core packages are protected.
 Space selects rows, `a` selects all/none, Enter accepts, and a confirmation is
 requested unless you explicitly disabled confirmations. `:rm` uses the same
 pattern for deleting workspace bindings.
@@ -409,6 +493,67 @@ Large text previews and directory listings are bounded; binary files are
 identified without trying to display them as text. R script previews use
 syntax highlighting. Browsing does not modify files.
 
+Text recognition uses the contents, including their encoding, rather than a
+filename-extension whitelist. UTF-8 text, UTF-16 and UTF-32 with byte-order
+markers, and strongly recognizable UTF-16 text without a marker are supported.
+This includes Windows `.ini` and `.log` files containing Unicode text. CRLF
+line endings are displayed normally. Ambiguous binary contents remain blocked,
+and malformed text receives a decoding notice. A byte limit preserves complete
+characters at the cutoff; the original file is never converted or rewritten.
+
+### System shell commands
+
+Use `:shell COMMAND`, or its short alias `:sh`, to run a command directly:
+
+```text
+:shell git status
+:sh git status --short > changes.txt
+```
+
+There is no outer R string to quote or escape. Everything after the command
+name is passed to the shell as command text, preserving internal spaces,
+quotes, backslashes, variable references, pipes and redirection. Individual
+arguments still use the shell's usual quoting rules. For example, Windows
+paths containing spaces use ordinary double quotes and single backslashes:
+
+```text
+:sh type "C:\Users\Alek\My R project\notes.txt"
+```
+
+The same Prism command works across operating systems, while the commands
+available inside the shell follow that system's conventions:
+
+| Task                        | Windows default shell | Linux or WSL2 shell |
+| --------------------------- | --------------------- | ------------------- |
+| List names in this folder   | `:sh dir /b`          | `:sh ls`            |
+| Show a detailed folder list | `:sh dir`             | `:sh ls -lah`       |
+
+On Linux and other Unix-like systems, Prism uses R's `system()` to run the
+command through the system shell, normally `/bin/sh`. On Windows it uses
+R's `system2()` to invoke the Windows command processor selected by `COMSPEC`,
+falling back to `cmd.exe`. This uses Windows command-processor syntax
+independently of `R_SHELL` or the Windows Terminal profile used to start R.
+To use PowerShell explicitly, for example, enter
+`:sh powershell -NoProfile -Command Get-Date`. R describes the platform
+differences in its
+[`system()` documentation](https://stat.ethz.ch/R-manual/R-devel/library/base/html/system.html).
+
+The child process inherits R's current directory and environment. A `cd` or
+environment assignment inside that child does not persist in R; use Prism's
+`:cd` to change the REPL's directory. Prism waits for the command to finish,
+displays a nonzero exit status clearly, and retains the status in `.Last.value`
+when the evaluation workspace permits that assignment.
+
+In full-screen mode, Prism temporarily restores the ordinary terminal so the
+command's output and interactive input work normally. After completion, press
+Enter to return to Prism; Ctrl+C also returns. The full output remains in
+terminal scrollback. Inline and basic modes return directly without that pause.
+
+Shell commands share the ordinary command history and can be recalled and
+edited. The searchable palette stages `:shell ` for your approval, and Tab
+completes the Prism command name. Shell command names and arguments are handled
+by the shell when you execute them.
+
 ## Structural object explorer
 
 `:objects` starts at the workspace. `:objects model` filters its names, while
@@ -419,9 +564,41 @@ together on wrapped rows rather than separating names from descriptions.
 
 Enter, Right, or a double-click opens a child. Left or Backspace returns to its
 parent. Tab cycles through **Children**, **Preview**, and **Attributes**. `/`
-filters names, `[` and `]` change batches, and `s` toggles approximate sizes.
-F1 explains the explorer keys. Large containers are inspected in bounded
+filters names in Children and Attributes, and values in Preview. `[` and `]`
+change batches, and `s` toggles approximate sizes in structural views.
+F2 explains the explorer keys. Large containers are inspected in bounded
 batches; size measurements are cached for visible records.
+
+### Filtering preview values
+
+Open a data frame with `:view iris`, press Tab to select **Preview**, then press
+`/`. The **Filter values:** field appears. Type `virginica` to keep rows with
+that text in any column. Matching is literal and case-insensitive, including
+Unicode text. The filter searches beyond the current preview batch, and it can
+match a column that is not currently visible in a narrow terminal. Original row
+numbers and row names are retained so you can locate results in the source.
+
+Press **Enter** to keep the filter. Press **Escape** while editing to restore
+the previous filter and scroll position. **Ctrl+U** clears the query, and
+Backspace removes one Unicode character. Pasting into Preview starts or edits
+the value filter; it never changes the object. A clear no-match message appears
+when nothing qualifies. `[` and `]` page through matching rows, and resizing
+keeps the filter active.
+
+Atomic-vector and matrix previews support value filtering too. The explorer
+caches the latest matching indices so ordinary redraws do not rescan the
+object. Extending a query can narrow the previous matches, and formatting uses
+bounded chunks. The first search of a very large object still needs to inspect
+its relevant values and can take longer than a redraw.
+
+Filters match safe value text before terminal-width clipping: full character
+values, factor labels, Date values and formatted numbers. Higher-dimensional
+atomic arrays use linear element indices. List-column cells use their short
+preview summaries; open a nested child to inspect its values in detail.
+Function, environment and S4 Preview filters search their bounded explanatory
+text. They do not evaluate bindings or call custom printing methods.
+
+### Navigating object structure
 
 Lists, data frames, environments, S4 slots, function formals, bodies and
 closure environments can be inspected structurally. **Atomic vectors are
@@ -452,15 +629,15 @@ The editor shows the function's source with R highlighting, wrapped Unicode
 cursor movement and a compact shortcut bar. Enter inserts a newline here.
 It does not execute the source.
 
-| Shortcut          | Function editor action                                      |
-| ----------------- | ----------------------------------------------------------- |
-| Ctrl+S            | Validate and save the edited function in the workspace      |
-| Ctrl+X or Escape  | Close; discard edits made since the last successful save    |
-| Ctrl+Z / Ctrl+Y   | Undo / redo                                                 |
-| Ctrl+W            | Find literal text, ignoring case                            |
-| Ctrl+N            | Jump to the next match                                      |
-| Tab               | Complete R names                                            |
-| Click / wheel     | Place the cursor / move through the source                  |
+| Shortcut         | Function editor action                                   |
+| ---------------- | -------------------------------------------------------- |
+| Ctrl+S           | Validate and save the edited function in the workspace   |
+| Ctrl+X or Escape | Close; discard edits made since the last successful save |
+| Ctrl+Z / Ctrl+Y  | Undo / redo                                              |
+| Ctrl+W           | Find literal text, ignoring case                         |
+| Ctrl+N           | Jump to the next match                                   |
+| Tab              | Complete R names                                         |
+| Click / wheel    | Place the cursor / move through the source               |
 
 Keep the editor contents as one `function(...)` expression. Do not add
 `f <-` or a second expression. A successful save replaces `f` and keeps its
@@ -490,7 +667,7 @@ matches on one line. Enter accepts the search. `n` jumps to the next occurrence;
 `p` jumps to the previous one and wraps at the ends. The active occurrence has
 a distinct highlight. Search is literal and case-insensitive; regular-expression
 punctuation has no special meaning. A pasted query opens the search field.
-Arrows scroll, PageUp/PageDown page, and F1 shows the viewer's shortcuts.
+Arrows scroll, PageUp/PageDown page, and F2 shows the viewer's shortcuts.
 Special characters are preserved without terminal overstrike backspaces.
 
 Normal values appear as ordinary output. Each message, warning or error has
@@ -527,19 +704,19 @@ the call trace. Add `copy` to copy the explanation prompt to the clipboard and
 print the destination URL, ready to open and paste. `:e` is the short form of
 `:explain`; `:ai` is already a short, unambiguous command.
 
-| Provider identifier | Name       | Browser destination or prompt template               | How the prompt reaches it |
-| ------------------- | ---------- | ---------------------------------------------------- | ------------------------- |
-| `mistral`           | Mistral AI | `https://chat.mistral.ai/chat?q={prompt}`            | Prompt in URL             |
-| `chatgpt`           | ChatGPT    | `https://chatgpt.com/?q={prompt}`                    | Prompt in URL             |
-| `claude`            | Claude     | `https://claude.ai/new?q={prompt}`                   | Prompt in URL             |
-| `perplexity`        | Perplexity | `https://www.perplexity.ai/search?q={prompt}`        | Prompt in URL             |
-| `gemini`            | Gemini     | `https://gemini.google.com/app`                      | Copy and paste            |
-| `copilot`           | Copilot    | `https://copilot.microsoft.com/`                     | Copy and paste            |
-| `grok`              | Grok       | `https://grok.com/`                                  | Copy and paste            |
-| `deepseek`          | DeepSeek   | `https://chat.deepseek.com/`                         | Copy and paste            |
-| `qwen`              | Qwen       | `https://chat.qwen.ai/`                              | Copy and paste            |
-| `duckai`            | Duck.ai    | `https://duck.ai/`                                   | Copy and paste            |
-| `poe`               | Poe        | `https://poe.com/`                                   | Copy and paste            |
+| Provider identifier | Name       | Browser destination or prompt template        | How the prompt reaches it |
+| ------------------- | ---------- | --------------------------------------------- | ------------------------- |
+| `mistral`           | Mistral AI | `https://chat.mistral.ai/chat?q={prompt}`     | Prompt in URL             |
+| `chatgpt`           | ChatGPT    | `https://chatgpt.com/?q={prompt}`             | Prompt in URL             |
+| `claude`            | Claude     | `https://claude.ai/new?q={prompt}`            | Prompt in URL             |
+| `perplexity`        | Perplexity | `https://www.perplexity.ai/search?q={prompt}` | Prompt in URL             |
+| `gemini`            | Gemini     | `https://gemini.google.com/app`               | Copy and paste            |
+| `copilot`           | Copilot    | `https://copilot.microsoft.com/`              | Copy and paste            |
+| `grok`              | Grok       | `https://grok.com/`                           | Copy and paste            |
+| `deepseek`          | DeepSeek   | `https://chat.deepseek.com/`                  | Copy and paste            |
+| `qwen`              | Qwen       | `https://chat.qwen.ai/`                       | Copy and paste            |
+| `duckai`            | Duck.ai    | `https://duck.ai/`                            | Copy and paste            |
+| `poe`               | Poe        | `https://poe.com/`                            | Copy and paste            |
 
 The four prompt templates are best-effort browser conventions. Provider sign-in,
 redirects and web updates can affect whether a prompt is filled or submitted.
@@ -692,7 +869,7 @@ color changes and restoration; Microsoft documents
 Terminal hosts that ignore these controls may need a contrasting cursor
 configured in their appearance settings.
 
-Theme, pipe, mouse, rainbow colors, automatic pairing, AI provider, custom AI
+Theme, pipe, mouse, rainbow colors, cursor pair highlighting, automatic pairing, AI provider, custom AI
 URL and shortcut changes are saved by default in
 `file.path(tools::R_user_dir("prismrepl", "config"), "preferences.dcf")`.
 `:settings` opens a preferences menu: select a setting to open its choices,
@@ -708,6 +885,7 @@ contains data, not executable R code.
 :pipe %>%
 :ai claude
 :rainbow on
+:match on
 :autopair on
 :bind newline F4
 :bind pipe Alt+P
@@ -717,7 +895,8 @@ contains data, not executable R code.
 ```
 
 `:settings reset` resets all persistent preferences together: a fresh desktop
-theme choice, native pipe, mouse on, rainbow on, automatic pairing on, Mistral
+theme choice, native pipe, mouse on, rainbow on, cursor pair highlighting on,
+automatic pairing on, Mistral
 AI, no custom URL, and the default keyboard shortcuts. `:bind reset` resets only
 the shortcuts. Both commands honor the persistence settings for the session.
 
@@ -745,6 +924,7 @@ cfg <- prismrepl::repl_config(
   status = c("directory", "git", "objects", "memory"),
   mouse = TRUE,
   rainbow = TRUE,
+  match_pairs = TRUE,
   autopair = TRUE,
   ai_provider = "claude",
   rows = 12L,
@@ -757,7 +937,7 @@ For a custom AI destination, use `ai_provider = "custom"` together with
 `ai_url = "https://chat.example.org/new?message={prompt}"`. For defaults that
 should persist without starting the REPL, call `prismrepl::repl_settings()`
 with the corresponding arguments, for example
-`prismrepl::repl_settings(rainbow = FALSE, autopair = TRUE)`.
+`prismrepl::repl_settings(rainbow = FALSE, match_pairs = TRUE, autopair = TRUE)`.
 
 The appearance reader follows the platform's application preferences described
 in [Windows app settings](https://learn.microsoft.com/en-us/windows/apps/develop/settings/settings-common)
@@ -767,6 +947,17 @@ recognized on Linux. These are appearance hints; a terminal profile can choose
 a different background, which you can match with `:theme`.
 
 ## Compatibility and practical limits
+
+R 4.5.0 and newer use the same editor, rendering, completion and inspection
+features. The native R 4.6 binding inspector is retained on R 4.6 and newer.
+On R 4.5, a compatibility path uses exported metadata helpers and supported R
+interfaces to distinguish delayed, active, missing and ordinary bindings. An
+already-evaluated promise whose value is the missing-argument sentinel remains
+a value. Inspection does not run active bindings or force delayed expressions.
+The appropriate implementation is selected at compilation time.
+Use a binary built for your R major/minor series, or compile the source archive
+with that R version. The release workflow produces binaries for the current
+R release; older R users can install the same source package.
 
 Full-screen mode needs an interactive terminal with supported input and ANSI
 output. `ui = "auto"` chooses it when available. `ui = "fullscreen"` requires

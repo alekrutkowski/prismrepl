@@ -19,7 +19,7 @@ and the most recent error result.
 }
 \description{
 The console runs inside the current R process and evaluates code in \code{envir}.
-Enter \verb{:help} for commands, \verb{:keys} or F1 for shortcuts, and \verb{:quit} to return
+Enter \verb{:help} for commands, \verb{:keys} or F2 for shortcuts, and \verb{:quit} to return
 to the ordinary R prompt. Native terminal mode is used only for interactive
 terminal input; \code{mode = "basic"} uses the host console's line editor.
 Supported terminals use a responsive full-screen layout by default. Set

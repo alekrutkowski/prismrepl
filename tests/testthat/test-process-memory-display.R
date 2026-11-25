@@ -1,0 +1,50 @@
+test_that("default process RAM is cheap and separate from optional object sizes", {
+  cfg <- repl_config(settings_file = NULL, color = FALSE, status = "process_memory")
+  expect_true("process_memory" %in% repl_config(settings_file = NULL)$status)
+  expect_false("memory" %in% repl_config(settings_file = NULL)$status)
+  calls <- 0L
+  local_mocked_bindings(.process_memory = function() { calls <<- calls + 1L; 123.5 * 1024^2 },
+    workspace_objects = function(...) stop("Object sizes must not be inspected for process RAM"))
+  expect_identical(.session_status(new.env(), cfg), "R RAM: 123.5 MiB")
+  expect_identical(calls, 1L)
+  expect_identical(.session_status(new.env(), cfg, process_memory = 2 * 1024^3), "R RAM: 2.0 GiB")
+  expect_identical(calls, 1L)
+  cfg$status <- character()
+  expect_identical(.session_status(new.env(), cfg), character())
+  expect_identical(calls, 1L)
+})
+
+test_that("sidebar shares the resident snapshot without changing object actions", {
+  env <- list2env(list(x = 1:3))
+  cfg <- repl_config(settings_file = NULL, color = FALSE, status = c("process_memory", "memory"))
+  inventory <- workspace_objects(env, sizes = TRUE)
+  local_mocked_bindings(.process_memory = function() stop("Use the supplied snapshot"))
+  groups <- .session_sidebar(env, cfg, inventory, process_memory = 128 * 1024^2)
+  expect_identical(groups$WORKSPACE[[1L]], "R RAM: 128.0 MiB")
+  expect_identical(attr(groups$WORKSPACE, "commands"), c("", ":view x", ":objects"))
+  expect_length(attr(groups$WORKSPACE, "commands"), length(groups$WORKSPACE))
+  expect_named(attr(groups$WORKSPACE, "hints"), c(":objects", ":rm"))
+  status <- .session_status(env, cfg, inventory, process_memory = 128 * 1024^2)
+  expect_match(status, "R RAM: 128.0 MiB", fixed = TRUE)
+  expect_match(status, "objects ~", fixed = TRUE)
+  expect_identical(.session_status(env, cfg, inventory, process_memory = NA_real_),
+    sub("R RAM: 128.0 MiB", "R RAM: unavailable", status, fixed = TRUE))
+  cfg$status <- character()
+  expect_false(any(startsWith(.session_sidebar(env, cfg, inventory)$WORKSPACE, "R RAM:")))
+})
+
+test_that("process memory can be selected and completed like other status fields", {
+  expect_identical(complete_r(":status process_m")$candidates, "process_memory")
+  state <- new.env(parent = emptyenv())
+  state$config <- repl_config(settings_file = NULL, color = FALSE)
+  .repl_command(":status process_memory memory", state, new.env())
+  expect_identical(state$config$status, c("process_memory", "memory"))
+  .repl_command(":status none", state, new.env())
+  expect_identical(state$config$status, character())
+  local_mocked_bindings(.tui_panel = function(lines, title, config, selected) {
+    expect_true(any(grepl("Total resident RAM", lines, fixed = TRUE)))
+    which(grepl("^process_memory", lines))
+  })
+  .repl_command(":status", state, new.env())
+  expect_identical(state$config$status, "process_memory")
+})

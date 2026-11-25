@@ -36,10 +36,11 @@
 #' @noRd
 .status_choice <- function(config) {
   stopifnot("config must be a console configuration" = inherits(config, "prismrepl_config"))
-  fields <- c("directory", "git", "objects", "packages", "memory")
-  labels <- paste(format(fields, width = 10L), c("Current directory path",
+  fields <- c("directory", "git", "objects", "packages", "memory", "process_memory")
+  labels <- paste(format(fields, width = 14L), c("Current directory path",
     "Repository branch and working-tree status", "Number of workspace objects",
-    "Number of attached packages", "Estimated size of workspace objects"))
+    "Number of attached packages", "Estimated size of workspace objects",
+    "Total resident RAM of the current R process"))
   chosen <- .tui_panel(labels, "Status fields", config, selected = fields %in% config$status)
   if (is.null(chosen)) return(NULL)
   stopifnot("status selection must contain valid field indices" = is.numeric(chosen) &&
@@ -103,19 +104,20 @@
   cfg <- state$config
   flag <- function(x) if (isTRUE(x)) "on" else "off"
   data <- data.frame(
-    id = c("theme", "pipe", "mouse", "rainbow", "autopair", "ai", "custom", "bind",
+    id = c("theme", "pipe", "mouse", "rainbow", "autopair", "match", "ai", "custom", "bind",
       "ui", "sidebar", "status", "persist", "path", "reset"),
-    setting = c("Theme", "Pipe", "Mouse", "Rainbow delimiters", "Automatic pairing",
+    setting = c("Theme", "Pipe", "Mouse", "Rainbow delimiters", "Automatic pairing", "Matching pair at cursor",
       "AI provider", "Custom AI URL", "Keyboard shortcuts", "Console layout", "Session pane",
       "Status fields", "Save changes", "Preferences file", "Reset preferences"),
-    value = c(cfg$theme$name, cfg$pipe, flag(cfg$mouse), flag(cfg$rainbow), flag(cfg$autopair),
+    value = c(cfg$theme$name, cfg$pipe, flag(cfg$mouse), flag(cfg$rainbow), flag(cfg$autopair), flag(cfg$match_pairs),
       cfg$ai_provider, if (is.null(cfg$ai_url)) "unset" else cfg$ai_url,
       paste(length(cfg$keybindings), "actions"), cfg$ui, flag(cfg$sidebar),
       if (length(cfg$status)) paste(cfg$status, collapse = " ") else "none", flag(cfg$persist),
       if (is.null(cfg$settings_file)) "disabled" else cfg$settings_file, "defaults"),
     description = c("Choose and save a theme.", "Choose the pipe shortcut's operator.",
       "Choose whether mouse interaction is enabled.", "Choose matching-delimiter colors.",
-      "Choose automatic delimiter insertion.", "Choose a provider for error-explanation links.",
+      "Choose automatic delimiter insertion.", "Highlight the matching bracket or quote pair at the cursor.",
+      "Choose a provider for error-explanation links.",
       "Place :ai custom in the input to edit its HTTPS template.",
       "Choose an action, then enter its new shortcut.", "Choose fullscreen or inline for this session.",
       "Show or hide the sidebar for this session.", "Select fields shown in this session's status line.",

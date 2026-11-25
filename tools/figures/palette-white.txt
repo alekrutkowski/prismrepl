@@ -13,7 +13,8 @@
   :rm [NAME ...]  (:r)            Remove named objects, or select a batch interactively.                                           
   [Packages]                                                                                                                       
   :packages  (:p)                 List attached packages and loaded namespaces.                                                    
-> :attach PACKAGE  (:a)           Attach an installed package with library(); Tab completes installed package names.               
+> :attach PACKAGE ...  (:a)       Attach installed packages in order with library(); stop at the first error. Tab completes each   
+>                                 package name.                                                                                    
   :detach [PACKAGE ...]  (:de)    Detach named packages, or select a batch; retain namespaces.                                     
   :install PACKAGE ...  (:i)      Install packages from the configured repositories; Tab uses a cached CRAN index. --refresh       
                                   refreshes that index.                                                                            
@@ -24,13 +25,12 @@
   :cd [PATH]  (:c)                Change working directory; with no path, show the current directory like :pwd.                    
   :pwd  (:pw)                     Show the current working directory.                                                              
   :git  (:g)                      Show tracked-file Git status for the current directory.                                          
+  :shell COMMAND  (:sh)           Run a system shell command without an R string; preserve shell quotes, pipes and redirects.      
   [History and errors]                                                                                                             
   :history [TEXT]  (:hi)          Browse submitted R expressions and colon commands; optionally filter literal text.               
   :recall NUMBER  (:re)           Place a numbered history entry in the input for editing and approval.                            
   :trace  (:tr)                   Show the most recent error's captured call trace.                                                
   :explain [copy] [minimal]       Show an AI explanation link, or copy its prompt; minimal omits source and call trace.            
   (:e)                                                                                                                             
-  [Appearance]                                                                                                                     
-  :theme [NAME|auto]  (:t)        Choose a theme or desktop appearance; Enter applies, saves, and repaints.                        
- 37/37 commands. Selection fills the input; review arguments and press Enter there to run.                                         
+ 39/39 commands. Selection fills the input; review arguments and press Enter there to run.                                         
  Enter stage command  Up/Down move  Tab sort  Ctrl+U clear  Escape cancel                                                          

@@ -2,10 +2,15 @@
 
 #' Build One Verified Native Release Archive in an Isolated Temporary Library
 #' @param root Package repository directory.
+#' @param source_archive Optional path to the exact source archive already
+#'   checked with R CMD check. Defaults to PRISMREPL_SOURCE_ARCHIVE when set;
+#'   an empty value builds a fresh source archive with R CMD build.
 #' @return The binary archive's absolute path, invisibly.
-build_release <- function(root = ".") {
+build_release <- function(root = ".", source_archive = Sys.getenv("PRISMREPL_SOURCE_ARCHIVE", unset = "")) {
   stopifnot("root must be an existing package directory" = is.character(root) &&
-              length(root) == 1L && !is.na(root) && dir.exists(root))
+              length(root) == 1L && !is.na(root) && dir.exists(root),
+            "source_archive must be one nonmissing path or empty text" =
+              is.character(source_archive) && length(source_archive) == 1L && !is.na(source_archive))
   root <- normalizePath(root, winslash = "/", mustWork = TRUE)
   source(file.path(root, "tools", "verify-platform.R"), local = TRUE)
   description <- read.dcf(file.path(root, "DESCRIPTION"))
@@ -13,6 +18,14 @@ build_release <- function(root = ".") {
               all(c("Package", "Version") %in% colnames(description)))
   package <- unname(description[1L, "Package"])
   version <- unname(description[1L, "Version"])
+  tarball <- paste0(package, "_", version, ".tar.gz")
+  if (nzchar(source_archive)) {
+    stopifnot("the checked source archive must be an existing file" =
+                file.exists(source_archive) && !dir.exists(source_archive),
+              "the checked source archive filename must match Package and Version" =
+                identical(basename(source_archive), tarball))
+    source_archive <- normalizePath(source_archive, winslash = "/", mustWork = TRUE)
+  }
   ref <- Sys.getenv("GITHUB_REF")
   if (startsWith(ref, "refs/tags/")) {
     tag <- substring(ref, nchar("refs/tags/") + 1L)
@@ -29,6 +42,14 @@ build_release <- function(root = ".") {
               .Platform$OS.type == "windows" || Sys.info()[["sysname"]] %in% c("Darwin", "Linux"))
   r_series <- paste(R.version$major, strsplit(R.version$minor, ".", fixed = TRUE)[[1L]][1L], sep = ".")
   r_exe <- file.path(R.home("bin"), if (.Platform$OS.type == "windows") "R.exe" else "R")
+  python_candidates <- unique(unname(Sys.which(c("python3", "python"))))
+  python_candidates <- python_candidates[nzchar(python_candidates)]
+  python_ready <- vapply(python_candidates, function(executable) isTRUE(tryCatch(
+    suppressWarnings(system2(executable, c("-c", shQuote(
+      "import sys; sys.exit(sys.version_info < (3, 8))")), stdout = FALSE, stderr = FALSE,
+      timeout = 10L)) == 0L, error = function(e) FALSE)), logical(1L))
+  stopifnot("release tooling requires Python 3.8 or newer (python3 or python)" = any(python_ready))
+  python <- python_candidates[[which(python_ready)[[1L]]]]
 
   #' Run a Checked R Build Command
   #' @param args Separate command arguments, quoted where necessary.
@@ -45,9 +66,13 @@ build_release <- function(root = ".") {
   original <- getwd()
   on.exit({ setwd(original); unlink(staging, recursive = TRUE) }, add = TRUE)
   setwd(staging)
-  run(c("CMD", "build", "--no-build-vignettes", shQuote(root)))
-  tarball <- paste0(package, "_", version, ".tar.gz")
+  if (nzchar(source_archive)) {
+    stopifnot("the exact checked source archive must be staged" = file.copy(source_archive, tarball))
+  } else run(c("CMD", "build", "--no-build-vignettes", shQuote(root)))
   stopifnot("source tarball must exist" = file.exists(tarball))
+  checked <- system2(python, c(shQuote(file.path(root, "tools", "check-source-archive.py")),
+    shQuote(tarball), "--description", shQuote(file.path(root, "DESCRIPTION"))))
+  stopifnot("the exact source tarball must pass archive validation before compilation" = identical(checked, 0L))
   library <- file.path(staging, "library")
   stopifnot("temporary package library must be created" = dir.create(library))
   run(c("CMD", "INSTALL", "--preclean", "--build", shQuote(paste0("--library=", library)),

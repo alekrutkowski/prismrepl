@@ -26,6 +26,92 @@ test_that("native binding inspection never runs active or delayed bindings", {
   expect_identical(binding_info(env, "cached"), c(cached = "value"))
 })
 
+test_that("binding inspection distinguishes missing arguments from cached defaults", {
+  env <- (function(required, deferred = stop("default was evaluated"), cached = 42, ...) {
+    cached
+    environment()
+  })()
+  expect_identical(binding_info(env, c("required", "deferred", "cached", "...")),
+    c(required = "missing", deferred = "promise", cached = "value", "..." = "missing"))
+  with_dots <- (function(...) environment())(stop("dots were evaluated"))
+  expect_identical(binding_info(with_dots, "..."), c("..." = "value"))
+
+  rlang::env_bind(env, explicit_missing = )
+  delayedAssign("forced_missing", rlang::missing_arg(), assign.env = env)
+  expect_identical(binding_info(env, "forced_missing"), c(forced_missing = "promise"))
+  invisible(rlang::env_get_list(env, "forced_missing"))
+  expect_identical(binding_info(env, c("explicit_missing", "forced_missing")),
+    c(explicit_missing = "missing", forced_missing = "value"))
+})
+
+test_that("binding inspection preserves frame scope, Unicode names and duplicate requests", {
+  parent <- new.env(parent = emptyenv())
+  parent$inherited <- 1L
+  lapply(c(FALSE, TRUE), function(hashed) {
+    env <- new.env(hash = hashed, parent = parent)
+    env$null <- NULL
+    env$expression <- quote(stop("language value was evaluated"))
+    env$symbol <- as.name("inherited")
+    env[["\u03b1 with spaces"]] <- list(data = 1:3)
+    delayedAssign("recursive", recursive, eval.env = env, assign.env = env)
+    makeActiveBinding("active", function() stop("active binding was evaluated"), env)
+    lockBinding("active", env)
+    requested <- c("null", "inherited", "", "\u03b1 with spaces", "recursive",
+                   "active", "expression", "symbol", "null")
+    expect_identical(binding_info(env, requested), stats::setNames(
+      c("value", "missing", "missing", "value", "promise", "active", "value", "value", "value"),
+      requested))
+    expect_identical(binding_info(env, c("recursive", "active", "absent")),
+      stats::setNames(c("promise", "active", "missing"), c("recursive", "active", "absent")))
+    expect_identical(binding_info(env, c("active", "absent")),
+      c(active = "active", absent = "missing"))
+  })
+})
+
+test_that("global missing bindings and forced missing values retain their distinct kinds", {
+  names <- paste0(".prismrepl_binding_test_", Sys.getpid(), c("_missing", "_forced", "_active", "_lazy"))
+  stopifnot("temporary test names must be unused" =
+              !any(vapply(names, exists, logical(1L), envir = globalenv(), inherits = FALSE)))
+  on.exit(rm(list = names, envir = globalenv()), add = TRUE)
+  do.call(rlang::env_bind, c(list(globalenv()), stats::setNames(list(rlang::missing_arg()), names[1L])))
+  delayedAssign(names[2L], rlang::missing_arg(), assign.env = globalenv())
+  invisible(rlang::env_get_list(globalenv(), names[2L]))
+  # No active/lazy fixture is present yet. A clone of a plain environment may
+  # collapse a forced promise to its cached missing value; inspection must not
+  # depend on clone implementation, binding order or the process identifier.
+  expect_identical(binding_info(globalenv(), names[1:2]),
+    stats::setNames(c("missing", "value"), names[1:2]))
+  makeActiveBinding(names[3L], function() stop("global active binding was evaluated"), globalenv())
+  delayedAssign(names[4L], stop("global promise was evaluated"), assign.env = globalenv())
+  expect_identical(binding_info(globalenv(), names),
+    stats::setNames(c("missing", "value", "active", "promise"), names))
+})
+
+test_that("global cached missing values are independent of binding names and order", {
+  names <- paste0(".prismrepl_cached_missing_", Sys.getpid(), "_", seq_len(64L))
+  stopifnot("temporary test names must be unused" =
+    !any(vapply(names, exists, logical(1L), envir = globalenv(), inherits = FALSE)))
+  on.exit(rm(list = names, envir = globalenv()), add = TRUE)
+  invisible(lapply(names, function(name)
+    delayedAssign(name, rlang::missing_arg(), assign.env = globalenv())))
+  expect_identical(binding_info(globalenv(), names),
+    stats::setNames(rep("promise", length(names)), names))
+  invisible(rlang::env_get_list(globalenv(), names))
+  requested <- c(rev(names), names[c(1L, 32L, 64L)])
+  expect_identical(binding_info(globalenv(), requested),
+    stats::setNames(rep("value", length(requested)), requested))
+})
+
+test_that("forced defaults containing missing remain values without evaluating others", {
+  env <- (function(required, deferred = stop("default was evaluated"),
+                   cached = rlang::missing_arg()) {
+    invisible(rlang::env_get_list(environment(), "cached"))
+    environment()
+  })()
+  expect_identical(binding_info(env, c("required", "deferred", "cached", "...")),
+    c(required = "missing", deferred = "promise", cached = "value", "..." = "missing"))
+})
+
 test_that("terminal inspection has no side effects outside a native terminal", {
   dimensions <- term_size()
   expect_identical(names(dimensions), c("width", "height"))

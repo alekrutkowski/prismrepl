@@ -189,6 +189,7 @@ parse_status <- function(text) {
 #' @param names Non-missing object names.
 #' @return A named character vector with `"active"`, `"promise"`, `"value"`,
 #'   or `"missing"` for each name in the current environment frame.
+#' @importFrom rlang env_binding_are_lazy env_get_list
 #' @keywords internal
 #' @noRd
 binding_info <- function(envir, names) {

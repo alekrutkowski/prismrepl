@@ -10,6 +10,7 @@ import fcntl
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import signal
 import struct
@@ -19,6 +20,7 @@ import tempfile
 import termios
 import time
 import unicodedata
+from pty_support import terminal_snapshot
 
 
 source = Path(__file__).with_name("pty-fullscreen.py")
@@ -33,7 +35,7 @@ if os.name != "posix":
 
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 120, 0, 0))
-original_modes = termios.tcgetattr(slave)
+original_modes = terminal_snapshot(slave)
 model = Screen(30, 120)
 raw = bytearray()
 environment = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
@@ -104,6 +106,7 @@ def resize(rows, columns):
 try:
     wait_for(">")
     bootstrap = (
+        'cat(paste0("PRISM_COMMAND_COUNT=",nrow(prismrepl::repl_commands()),"\\n")); '
         'fixture <- new.env(parent=baseenv()); fixture$f <- function(x) x+1L; '
         'result <- prismrepl::repl(envir=fixture,config=prismrepl::repl_config('
         'ui="fullscreen",color=TRUE,color_depth=16777216L,settings_file=NULL,'
@@ -116,11 +119,14 @@ try:
     )
     send(bootstrap + "\n")
     wait_for("PRISM REPL")
+    count_match = re.search(rb"PRISM_COMMAND_COUNT=([0-9]+)", raw)
+    assert count_match is not None, "The installed command registry count was not reported."
+    command_count = int(count_match.group(1))
 
     expression(":help")
     wait_for("Command palette")
     paste("function in a small")
-    wait_for("1/37 commands")
+    wait_for(f"1/{command_count} commands")
     assert ":edit NAME" in model.text(), model.text()
     send("\t")
     wait_for("alphabetical")
@@ -155,7 +161,7 @@ try:
     expression(":h")
     wait_for("Command palette")
     paste("current working directory")
-    wait_for("2/37 commands")
+    wait_for(f"2/{command_count} commands")
     send("\x1b[F\r")
     wait_for("PRISM REPL")
     wait_for("r> :pwd")
@@ -168,7 +174,7 @@ try:
     expression(":h")
     wait_for("Command palette")
     paste("Clear the retained")
-    wait_for("1/37 commands")
+    wait_for(f"1/{command_count} commands")
     row = next(i + 1 for i, line in enumerate(model.text().splitlines()) if ":clear" in line)
     send(f"\x1b[<0;5;{row}M")
     collect(0.1)
@@ -183,7 +189,7 @@ try:
     wait_for("COMMANDS_PTY_DONE")
     process.wait(timeout=10)
     assert process.returncode == 0, process.returncode
-    assert termios.tcgetattr(slave) == original_modes
+    assert terminal_snapshot(slave) == original_modes
     assert model.enters == model.leaves == 1
     assert model.alternate_scrolls == 0
     assert not model.bad_cursor, model.bad_cursor

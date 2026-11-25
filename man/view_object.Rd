@@ -21,7 +21,9 @@ view_object(
 
 \item{label}{Name shown at the root of the breadcrumb.}
 
-\item{filter}{Initial literal child-name filter; an integer selects an index.}
+\item{filter}{Initial literal, case-insensitive filter. It matches child names
+in structural views (an integer also selects an index) and values when an
+atomic object starts in Preview.}
 }
 \value{
 Initial prepared structural text invisibly.
@@ -30,9 +32,12 @@ Initial prepared structural text invisibly.
 Opens a structural explorer with breadcrumbs, type and class metadata,
 dimensions, approximate size, and bounded child pages. Enter or Right opens
 a child; Left or Backspace returns to its parent. Tab switches children,
-preview, and attributes. \code{/} filters child names; \code{[} and \verb{]} change batches.
+preview, and attributes. \code{/} filters child names in structural views and
+underlying values in Preview. Table filters match rows across columns before
+bounded paging; original row identifiers are retained. \code{[} and \verb{]} change
+batches. Enter keeps a filter; Escape restores the previous filter and position.
 Arrow and Page keys move the selection. Mouse clicks and the wheel are
-supported when enabled. F1 shows explorer shortcuts; \code{q} closes the viewer.
+supported when enabled. F2 shows explorer shortcuts; \code{q} closes the viewer.
 Press \code{s} to toggle cached child sizes. Sizes are initially shown when
 \code{"memory"} is enabled in the status configuration; new measurements happen
 for visible records after navigation or accepting a name filter.

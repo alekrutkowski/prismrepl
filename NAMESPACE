@@ -28,6 +28,10 @@ export(save_repl_history)
 export(view_help)
 export(view_object)
 export(workspace_objects)
+importFrom(rlang,
+  env_binding_are_lazy,
+  env_get_list
+)
 importFrom(utils,
   capture.output,
   flush.console,

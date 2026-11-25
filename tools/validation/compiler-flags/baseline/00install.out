@@ -1,0 +1,17 @@
+* installing *source* package ‘prismflagprobe’ ...
+** this is package ‘prismflagprobe’ version ‘0.0.1’
+** using staged installation
+** libs
+using C compiler: ‘x86_64-linux-gnu-gcc (Debian 14.2.0-19) 14.2.0’
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG      -Wconversion -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -mno-omit-leaf-frame-pointer -c probe.c -o probe.o
+x86_64-linux-gnu-gcc -shared -L/workspace/scratch/62ed418800ca/runtime/flags064/R-inherited/lib -Wl,-z,relro -o prismflagprobe.so probe.o -L/workspace/scratch/62ed418800ca/runtime/flags064/R-inherited/lib -lR
+installing to /workspace/scratch/62ed418800ca/runtime/flags064/baseline/prismflagprobe.Rcheck/00LOCK-prismflagprobe/00new/prismflagprobe/libs
+** help
+No man pages found in package  ‘prismflagprobe’ 
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (prismflagprobe)

@@ -3,9 +3,12 @@
 #' Opens a structural explorer with breadcrumbs, type and class metadata,
 #' dimensions, approximate size, and bounded child pages. Enter or Right opens
 #' a child; Left or Backspace returns to its parent. Tab switches children,
-#' preview, and attributes. `/` filters child names; `[` and `]` change batches.
+#' preview, and attributes. `/` filters child names in structural views and
+#' underlying values in Preview. Table filters match rows across columns before
+#' bounded paging; original row identifiers are retained. `[` and `]` change
+#' batches. Enter keeps a filter; Escape restores the previous filter and position.
 #' Arrow and Page keys move the selection. Mouse clicks and the wheel are
-#' supported when enabled. F1 shows explorer shortcuts; `q` closes the viewer.
+#' supported when enabled. F2 shows explorer shortcuts; `q` closes the viewer.
 #' Press `s` to toggle cached child sizes. Sizes are initially shown when
 #' `"memory"` is enabled in the status configuration; new measurements happen
 #' for visible records after navigation or accepting a name filter.
@@ -20,7 +23,9 @@
 #' @param config Console configuration.
 #' @param rows Maximum child records or preview rows per batch.
 #' @param label Name shown at the root of the breadcrumb.
-#' @param filter Initial literal child-name filter; an integer selects an index.
+#' @param filter Initial literal, case-insensitive filter. It matches child names
+#'   in structural views (an integer also selects an index) and values when an
+#'   atomic object starts in Preview.
 #' @return Initial prepared structural text invisibly.
 #' @export
 #' @examples
@@ -141,7 +146,7 @@ view_help <- function(topic = NULL, package = NULL, config = repl_config()) {
     return(unname(mapped[[action]]))
   out <- if (!is.null(action)) "" else if (is.character(event$key) && length(event$key)) event$key else ""
   if (identical(out, "tab") && "shift" %in% event$modifiers) out <- "backtab"
-  if (identical(out, "f1")) out <- "help"
+  if (identical(out, "f2")) out <- "help"
   stopifnot("viewer action must be scalar text" = is.character(out) && length(out) == 1L)
   out
 }
@@ -218,6 +223,14 @@ view_help <- function(topic = NULL, package = NULL, config = repl_config()) {
 .viewer_start <- function(config) {
   stopifnot("config must be a console configuration" = inherits(config, "prismrepl_config"))
   shared <- is.environment(config$screen) && isTRUE(config$screen$active)
+  if (!is.null(config$viewer_handle)) {
+    stopifnot("a borrowed viewer handle must be an external pointer" = typeof(config$viewer_handle) == "externalptr")
+    alternate <- isTRUE(config$viewer_alternate)
+    if (alternate) { term_write("\033[?1049h"); term_output_screen(TRUE) }
+    term_write("\033[?25l")
+    return(list(handle = config$viewer_handle, guard = NULL, shared = shared,
+      borrowed = TRUE, alternate = alternate))
+  }
   guard <- if (interactive() && !isTRUE(term_output_state()$active)) term_output_open() else NULL
   complete <- FALSE
   handle <- NULL
@@ -250,6 +263,13 @@ view_help <- function(topic = NULL, package = NULL, config = repl_config()) {
 .viewer_finish <- function(session, config) {
   stopifnot("session and config must be lists" = is.list(session) && is.list(config))
   on.exit({ if (!is.null(session$guard)) term_output_close(session$guard) }, add = TRUE)
+  if (isTRUE(session$borrowed)) {
+    if (isTRUE(session$alternate)) {
+      term_write("\033[0m\033[?25h\033[?1049l")
+      term_output_screen(FALSE)
+    } else if (isTRUE(session$shared)) screen_invalidate(config$screen)
+    return(invisible(NULL))
+  }
   if (!is.null(session$handle)) {
     term_close(session$handle)
     if (session$shared) {

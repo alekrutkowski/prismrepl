@@ -77,7 +77,7 @@ does not establish every terminal emulator's behavior.
 
 - Open :h, search a description, toggle sort with Tab, and choose with Enter.
   Confirm only editable text is staged; execute only after another Enter.
-- Open :ai, :pipe, :mouse, :rainbow, :autopair, :ui and :sidebar without arguments.
+- Open :ai, :pipe, :mouse, :rainbow, :match, :autopair, :ui and :sidebar without arguments.
   Verify current focus, search, mouse focus, Enter acceptance and Escape cancellation.
   In :ai, Custom without a saved URL must stage :ai custom without changing provider.
   Choose a binding in :bind or :keys and finish its staged command explicitly.
@@ -92,6 +92,11 @@ does not establish every terminal emulator's behavior.
   Page through a long vector with [/] and return with Left. Drill through a
   nested list column, verifying each atomic value is a leaf. Inspect Attributes.
 - Inspect columns with ASCII, combining marks and CJK names; headings align.
+- In a data-frame Preview, press `/` and filter values in rows beyond the
+  initial batch. Confirm that hidden columns can match, original row labels
+  remain visible, and `[` / `]` page through filtered rows. Enter keeps the
+  filter; Escape restores its prior query and position. Test no matches,
+  Ctrl+U, Unicode Backspace, paste, resize, and unchanged source data.
 - In Windows Terminal, start from a profile with a dark cursor and select black.
   The insertion cursor must become visible and light. Switch to white and check
   that it becomes dark, including at an empty prompt and in :edit. Open/close
@@ -127,3 +132,16 @@ does not establish every terminal emulator's behavior.
   Home-page providers require pasting; no prompt opens or sends automatically.
 - Check colored hint rows under all three sidebar modules, including long lists
   and white/black themes. Their command labels and descriptions use footer styling.
+
+- With a multiline Unicode draft, move onto `stats::lm` and press F1. Verify
+  local help opens without executing the draft. Close it and check exact text
+  and cursor restoration. Repeat in inline mode and the `:edit` function editor.
+  Verify F2 opens shortcuts and both actions can be remapped persistently.
+- With `:rainbow off` and `:match on`, move onto both ends of each bracket and
+  quote pair, including `r"--[raw text]--"` and multiline raw strings. Both
+  delimiter endpoints must be distinct in black and white themes. Move away,
+  toggle `:match off`, change themes and resize; stale highlights must disappear.
+- Repeat package installation and binding-safe object/completion checks on
+  exact R 4.5.0 as well as current R release. A saved default F1 mapping from an
+  earlier installation should become F1 context help and F2 shortcuts; explicit
+  custom assignments must remain intact.

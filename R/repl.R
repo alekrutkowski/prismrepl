@@ -1,7 +1,7 @@
 #' Start the Prism Interactive Console
 #'
 #' The console runs inside the current R process and evaluates code in `envir`.
-#' Enter `:help` for commands, `:keys` or F1 for shortcuts, and `:quit` to return
+#' Enter `:help` for commands, `:keys` or F2 for shortcuts, and `:quit` to return
 #' to the ordinary R prompt. Native terminal mode is used only for interactive
 #' terminal input; `mode = "basic"` uses the host console's line editor.
 #' Supported terminals use a responsive full-screen layout by default. Set
@@ -37,6 +37,7 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
     if (is.environment(state$config$screen)) try(screen_leave(state$config$screen), silent = TRUE)
     try(term_reset(), silent = TRUE)
     try(term_output_close(output_handle), silent = TRUE)
+    try(.cleanup_cran_workers(wait = TRUE), silent = TRUE)
     if (!is.null(state$config$history_file)) tryCatch(
       save_repl_history(state$history, state$config$history_file, state$config$history_limit),
       error = function(e) warning(paste("History was not saved:", conditionMessage(e)), call. = FALSE))
@@ -60,7 +61,7 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
     .remember_initial_theme(cfg)
     state$config$theme_initial <- FALSE
   }
-  .emit(c("prismrepl 0.5.1", ":help commands  :keys shortcuts  :quit return to R"), "heading", cfg)
+  .emit(c("prismrepl 0.6.4", ":help commands  :keys shortcuts  :quit return to R"), "heading", cfg)
   if (!native) .emit("Basic console mode. Editing is provided by the host R console.", "muted", cfg)
   repeat {
     if (!state$running) break
@@ -70,10 +71,11 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
                      any(c("objects", "memory") %in% cfg$status))
       tryCatch(workspace_objects(envir, sizes = "memory" %in% cfg$status),
                error = function(e) NULL) else NULL
-    status <- tryCatch(.session_status(envir, cfg, inventory), error = function(e) character())
+    process_memory <- if ("process_memory" %in% cfg$status) .process_memory() else NULL
+    status <- tryCatch(.session_status(envir, cfg, inventory, process_memory), error = function(e) character())
     if (is.environment(cfg$screen) && isTRUE(cfg$screen$active)) {
       cfg$screen$status <- status
-      cfg$screen$sidebar <- tryCatch(.session_sidebar(envir, cfg, inventory), error = function(e)
+      cfg$screen$sidebar <- tryCatch(.session_sidebar(envir, cfg, inventory, process_memory), error = function(e)
         list(WORKSPACE = paste("Inspection unavailable:", conditionMessage(e))))
     }
     cfg$initial_text <- state$initial
@@ -209,10 +211,11 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
 #' @param envir Evaluation environment.
 #' @param config Configuration.
 #' @param inventory Optional shared workspace snapshot for this refresh.
+#' @param process_memory Optional resident-byte snapshot shared with the sidebar.
 #' @return Character lines, refreshed once per submitted expression.
 #' @keywords internal
 #' @noRd
-.session_status <- function(envir, config, inventory = NULL) {
+.session_status <- function(envir, config, inventory = NULL, process_memory = NULL) {
   stopifnot("envir must be an environment" = is.environment(envir),
             "config must be a configuration" = inherits(config, "prismrepl_config"),
             "inventory must be NULL or a data frame" = is.null(inventory) || is.data.frame(inventory))
@@ -220,11 +223,15 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
   if (is.null(inventory) && any(c("objects", "memory") %in% fields))
     inventory <- workspace_objects(envir, sizes = "memory" %in% fields)
   out <- c(
+    if ("process_memory" %in% fields) .process_memory_label(
+      if (is.null(process_memory)) .process_memory() else process_memory),
     if ("directory" %in% fields) paste0("cwd: ", getwd()),
     if ("git" %in% fields) {
       info <- git_info()
-      if (isTRUE(info$is_repo)) paste0("git: ", info$branch,
-        if (isTRUE(info$dirty)) " *" else "", "  +", info$ahead, "/", info$behind)
+      if (isTRUE(info$is_repo)) {
+        if (nzchar(info$error)) "git: status unavailable" else paste0("git: ", info$branch,
+          if (isTRUE(info$dirty)) " *" else "", "  +", info$ahead, "/", info$behind)
+      }
     },
     if ("objects" %in% fields) paste0("objects: ", nrow(inventory)),
     if ("packages" %in% fields) paste0("packages: ", sum(startsWith(search(), "package:")), " attached"),
@@ -305,9 +312,13 @@ repl_commands <- function(details = FALSE) {
     packages = .tui_table(loaded_packages(), "Packages and namespaces", cfg),
     detach = .batch_action("packages", args, state, envir),
     attach = {
-      need(1L)
-      .command_evaluate(substitute(base::library(PACKAGE, character.only = TRUE),
-        list(PACKAGE = args[[1L]])), state, envir)
+      stopifnot("use :attach PACKAGE ... with package names separated by spaces" =
+                  length(args) >= 1L && all(nzchar(args)))
+      calls <- lapply(unique(args), function(package)
+        substitute(base::library(PACKAGE, character.only = TRUE), list(PACKAGE = package)))
+      call <- if (length(calls) == 1L) calls[[1L]] else
+        as.call(c(list(quote(base::`{`)), calls))
+      .command_evaluate(call, state, envir)
     },
     install = {
       stopifnot("use :install PACKAGE ... or :install --refresh" = length(args) >= 1L)
@@ -333,7 +344,7 @@ repl_commands <- function(details = FALSE) {
       if (!length(args)) args <- .status_choice(cfg)
       if (is.null(args)) return(invisible(NULL))
       if (identical(args, "none")) args <- character()
-      stopifnot("unknown status field" = all(args %in% c("directory", "git", "objects", "packages", "memory")))
+      stopifnot("unknown status field" = all(args %in% c("process_memory", "directory", "git", "objects", "packages", "memory")))
       state$config$status <- unique(args)
     },
     theme = {
@@ -371,13 +382,13 @@ repl_commands <- function(details = FALSE) {
       stopifnot("use :settings or :settings reset" = !length(args) || identical(args, "reset"))
       if (length(args)) {
         defaults <- list(theme = repl_theme(.initial_theme(refresh = TRUE), color_depth = cfg$color_depth),
-          pipe = "|>", mouse = TRUE, rainbow = TRUE, autopair = TRUE,
+          pipe = "|>", mouse = TRUE, rainbow = TRUE, autopair = TRUE, match_pairs = TRUE,
           ai_provider = "mistral", ai_url = NULL, keybindings = repl_keybindings(), theme_initial = FALSE)
         state$config[names(defaults)] <- defaults
         state$config$key_lookup <- .key_lookup(state$config$keybindings)
         if (is.environment(cfg$screen)) screen_invalidate(cfg$screen)
         .persist_preferences(state$config, c("theme", "pipe", "mouse", "keybindings",
-          "rainbow", "autopair", "ai_provider", "ai_url"), reset = TRUE)
+          "rainbow", "autopair", "match_pairs", "ai_provider", "ai_url"), reset = TRUE)
         .emit("Appearance, editing, AI provider, shortcuts, pipe and mouse preferences reset.", "message", state$config)
         if (is.environment(cfg$screen) && isTRUE(cfg$screen$active))
           screen_render(cfg$screen, config = state$config)
@@ -394,6 +405,7 @@ repl_commands <- function(details = FALSE) {
     },
     rainbow = .editing_preference_command("rainbow", args, state),
     autopair = .editing_preference_command("autopair", args, state),
+    match = .editing_preference_command("match_pairs", args, state),
     ai = .ai_command(args, state),
     history = {
       entries <- state$history
@@ -424,7 +436,9 @@ repl_commands <- function(details = FALSE) {
       if (!length(args)) .emit(getwd(), "output", cfg) else setwd(path.expand(args[[1L]]))
     },
     pwd = .emit(getwd(), "output", cfg),
-    git = panel(capture.output(str(git_info())), "Git repository"),
+    git = panel(capture.output(utils::str(git_info())), "Git repository"),
+    shell = .command_evaluate(.shell_call(parsed$raw), state, envir,
+      external = TRUE, operation = "shell"),
     clear = {
       if (is.environment(cfg$screen) && isTRUE(cfg$screen$active)) screen_clear(cfg$screen)
       else if (state$native) cat("\033[2J\033[H")

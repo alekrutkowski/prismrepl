@@ -4,7 +4,7 @@
 #' @return A session-local environment; no terminal changes are made.
 #' @keywords internal
 #' @noRd
-screen_state <- function(max_lines = 4000L, title = "PRISM REPL", version = "0.5.1") {
+screen_state <- function(max_lines = 4000L, title = "PRISM REPL", version = "0.6.4") {
   stopifnot("max_lines must be a positive integer" = .is_count(max_lines, 1L),
             "title and version must be text" = .is_text(title) && .is_text(version))
   out <- new.env(parent = emptyenv())
@@ -774,11 +774,11 @@ screen_content_width <- function(screen, config, size = term_size()) {
         }
         actions <- c("submit", if (layout$usable >= 90L) "newline",
           if (layout$usable >= 35L) "complete", if (layout$usable >= 50L) "history_search",
-          "help", if (layout$usable >= 70L) "scroll_up")
+          "function_help", "help", if (layout$usable >= 90L) "scroll_up")
         descriptions <- c(submit = "run", newline = "newline", complete = "complete",
-          history_search = "history", help = "keys", scroll_up = "scroll")
+          history_search = "history", function_help = "docs", help = "keys", scroll_up = "scroll")
         defaults <- c(submit = "Enter", newline = "Ctrl+J", complete = "Tab",
-          history_search = "Ctrl+R", help = "F1", scroll_up = "PageUp")
+          history_search = "Ctrl+R", help = "F2", function_help = "F1", scroll_up = "PageUp")
         hints <- stats::setNames(unname(descriptions[actions]),
           vapply(actions, function(action) label(action, defaults[[action]]), character(1L)))
         .screen_paint(.screen_fit(paste0(" ", .footer_hints(hints, config,

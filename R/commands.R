@@ -12,7 +12,7 @@
     c("edit", ":edit NAME", "ed", "Workspace", "Edit a function in a small editor; validate and save explicitly with Ctrl+S.", ":edit "),
     c("rm", ":rm [NAME ...]", "r", "Workspace", "Remove named objects, or select a batch interactively.", ":rm "),
     c("packages", ":packages", "p", "Packages", "List attached packages and loaded namespaces.", ":packages"),
-    c("attach", ":attach PACKAGE", "a", "Packages", "Attach an installed package with library(); Tab completes installed package names.", ":attach "),
+    c("attach", ":attach PACKAGE ...", "a", "Packages", "Attach installed packages in order with library(); stop at the first error. Tab completes each package name.", ":attach "),
     c("detach", ":detach [PACKAGE ...]", "de", "Packages", "Detach named packages, or select a batch; retain namespaces.", ":detach "),
     c("install", ":install PACKAGE ...", "i", "Packages", "Install packages from the configured repositories; Tab uses a cached CRAN index. --refresh refreshes that index.", ":install "),
     c("installgh", ":installgh USER/REPO", "ig", "Packages", "Install a GitHub package with remotes::install_github(); no quotes needed.", ":installgh "),
@@ -21,6 +21,7 @@
     c("cd", ":cd [PATH]", "c", "Files", "Change working directory; with no path, show the current directory like :pwd.", ":cd "),
     c("pwd", ":pwd", "pw", "Files", "Show the current working directory.", ":pwd"),
     c("git", ":git", "g", "Files", "Show tracked-file Git status for the current directory.", ":git"),
+    c("shell", ":shell COMMAND", "sh", "Files", "Run a system shell command without an R string; preserve shell quotes, pipes and redirects.", ":shell "),
     c("history", ":history [TEXT]", "hi", "History and errors", "Browse submitted R expressions and colon commands; optionally filter literal text.", ":history "),
     c("recall", ":recall NUMBER", "re", "History and errors", "Place a numbered history entry in the input for editing and approval.", ":recall "),
     c("trace", ":trace", "tr", "History and errors", "Show the most recent error's captured call trace.", ":trace"),
@@ -36,6 +37,7 @@
     c("mouse", ":mouse [on|off]", "m", "Preferences", "Choose and remember mouse clicks, dragging, copying, pasting and scrolling.", ":mouse "),
     c("rainbow", ":rainbow [on|off|toggle]", "ra", "Preferences", "Choose and remember matching-parenthesis, bracket, brace and quote colors.", ":rainbow "),
     c("autopair", ":autopair [on|off|toggle]", "au", "Preferences", "Choose and remember automatic matching delimiters and generated-closer skipping.", ":autopair "),
+    c("match", ":match [on|off|toggle]", "ma", "Preferences", "Choose and remember highlighting both matching brackets or quotes at the cursor, including raw strings.", ":match "),
     c("ai", ":ai [PROVIDER|custom URL]", "ai", "Preferences", "Choose and save the error-explanation provider with Enter; Custom can stage a URL for editing.", ":ai "),
     c("settings", ":settings [reset]", "se", "Preferences", "Choose a preference to edit; URL setup and reset commands are placed in the input for approval.", ":settings "),
     c("doctor", ":doctor", "dr", "Session", "Show terminal, color, clipboard and platform diagnostics.", ":doctor"),
@@ -66,9 +68,10 @@
   index <- match(name, registry$id)
   if (is.na(index)) index <- match(name, registry$alias)
   cmd <- if (is.na(index)) name else registry$id[[index]]
-  raw <- if (length(parts) >= 3L) trimws(parts[[3L]]) else ""
+  raw <- if (length(parts) >= 3L) parts[[3L]] else ""
+  if (cmd != "shell") raw <- trimws(raw)
   path_command <- cmd %in% c("source", "cd", "files")
-  args <- if (!nzchar(raw)) character() else if (path_command) .command_path(raw) else
+  args <- if (!nzchar(raw)) character() else if (cmd == "shell") raw else if (path_command) .command_path(raw) else
     scan(text = raw, what = character(), quiet = TRUE, quote = "\"'`", comment.char = "", allowEscapes = FALSE)
   out <- list(command = cmd, args = args, raw = raw)
   stopifnot("parsed command must contain literal arguments" = .is_text(out$command) &&
@@ -112,30 +115,49 @@
 #' @param envir Evaluation environment.
 #' @param external Restore the ordinary terminal while installers or their child
 #'   processes run, then return to the full-screen interface.
+#' @param operation Package operation or shell command; shell commands report
+#'   their exit status and pause before returning to the full-screen interface.
 #' @return The evaluation result invisibly.
 #' @noRd
-.command_evaluate <- function(call, state, envir, external = FALSE) {
+.command_evaluate <- function(call, state, envir, external = FALSE, operation = "package") {
   stopifnot("command must be an R call" = is.call(call),
             "state and evaluation environment must be environments" = is.environment(state) && is.environment(envir),
-            "external must be logical" = .is_flag(external))
+            "external must be logical" = .is_flag(external),
+            "operation must be package or shell" = .is_text(operation) && operation %in% c("package", "shell"))
   code <- paste(deparse(call, width.cutoff = 100L), collapse = "\n")
   config <- state$config
+  result <- report <- NULL
   suspended <- external && is.environment(config$screen) && isTRUE(config$screen$active)
   if (suspended) {
     screen_leave(config$screen)
     on.exit({
+      if (operation == "shell" && is.list(result)) {
+        state$config$screen$mode <- if (isTRUE(result$interrupted)) "INTERRUPTED" else
+          if (!is.null(result$error) || identical(report$role, "error")) "ERROR" else
+            if (length(result$warnings)) "WARNING" else "READY"
+        state$config$screen$elapsed <- result$elapsed
+      }
       screen_enter(state$config$screen, state$config)
       screen_invalidate(state$config$screen)
-      if (!is.null(state$last$error)) .show_error(state$last, state$config) else
-        .emit("Package operation returned. Its full output is in the terminal scrollback.",
-          if (length(state$last$warnings)) "warning" else "message", state$config)
+      if (!is.null(result$error)) .show_error(result, state$config) else if (!is.null(report))
+        .emit(report$text, report$role, state$config) else if (operation == "package")
+          .emit("Package operation returned. Its full output is in the terminal scrollback.",
+            if (length(result$warnings)) "warning" else "message", state$config)
     }, add = TRUE)
     config$screen <- NULL
     config$output_hook <- NULL
-    .emit("Running the package installer; the full-screen console resumes when it returns.", "message", config)
+    .emit(if (operation == "shell") "Running the shell command in the ordinary terminal." else
+      "Running the package installer; the full-screen console resumes when it returns.", "message", config)
   }
-  state$last <- .evaluate_session(code, envir, config)
+  result <- .evaluate_session(code, envir, config)
+  state$last <- result
   if (!is.null(state$last$error)) state$last_error <- state$last
+  if (operation == "shell") {
+    report <- .shell_summary(result)
+    if (is.null(result$error)) .emit(report$text, report$role, config)
+    if (suspended && !isTRUE(result$interrupted))
+      tryCatch(.shell_pause(), interrupt = function(e) invisible(NULL))
+  }
   stopifnot("command evaluation must have a result" = is.list(state$last) && "error" %in% names(state$last))
   invisible(state$last)
 }

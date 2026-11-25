@@ -1,0 +1,10 @@
+test_that("implicit configurations use isolated default preferences during tests", {
+  config <- repl_config(color = FALSE)
+  expect_false(file.exists(repl_settings_file()))
+  expect_true(dir.exists(dirname(repl_settings_file())))
+  expect_identical(config$ai_provider, "mistral")
+  expect_identical(config$pipe, "|>")
+  expect_true(config$rainbow)
+  expect_true(config$autopair)
+  expect_identical(config$keybindings, repl_keybindings())
+})

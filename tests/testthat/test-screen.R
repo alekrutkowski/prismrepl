@@ -1,5 +1,5 @@
 screen_fixture <- function(color = FALSE) {
-  config <- repl_config(color = color)
+  config <- repl_config(settings_file = NULL, color = color)
   config$sidebar <- TRUE
   config$editor_height <- 8L
   screen <- screen_state()
@@ -238,6 +238,7 @@ test_that("resizing the fullscreen editor preserves every grapheme in its buffer
 
 test_that("condition cards reflow and historical source follows theme changes", {
   fixture <- screen_fixture(color = TRUE)
+  fixture$config$theme <- repl_theme("midnight", color_depth = fixture$config$color_depth)
   lines <- .condition_lines("A long diagnostic message with enough words to wrap on a narrow terminal.",
                              "error", fixture$config, width = 80L)
   screen_append(fixture$screen, lines, "error", ansi = TRUE)
@@ -252,7 +253,7 @@ test_that("condition cards reflow and historical source follows theme changes", 
   screen_append(fixture$screen, styled, "input", ansi = TRUE)
   source <- fixture$screen$entries[[2L]]
   dark <- .screen_entry_lines(source, fixture$config, 80L)
-  fixture$config$theme <- repl_theme("paper")
+  fixture$config$theme <- repl_theme("paper", color_depth = fixture$config$color_depth)
   light <- .screen_entry_lines(source, fixture$config, 80L)
   expect_identical(screen_plain(dark), screen_plain(light))
   expect_false(identical(dark, light))

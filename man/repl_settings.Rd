@@ -14,7 +14,8 @@ repl_settings(
   rainbow = NULL,
   autopair = NULL,
   ai_provider = NULL,
-  ai_url = NULL
+  ai_url = NULL,
+  match_pairs = NULL
 )
 }
 \arguments{
@@ -39,6 +40,9 @@ or \code{"custom"} with an \code{ai_url} template.}
 
 \item{ai_url}{Optional HTTPS URL template containing exactly one \code{{prompt}}.
 It is retained when switching to a built-in provider for convenient reuse.}
+
+\item{match_pairs}{Optional logical preference for highlighting the matching
+bracket or quote pair at the cursor, including compound raw-string quotes.}
 }
 \value{
 A list of saved preferences. Unset preferences are absent.
@@ -47,7 +51,7 @@ A list of saved preferences. Unset preferences are absent.
 With no changes, read the saved preferences. Supplying a theme, key bindings,
 pipe, mouse, editing or AI-provider preference validates and saves the change.
 Console commands \verb{:theme}, \verb{:bind}, \verb{:unbind}, \verb{:pipe}, \verb{:mouse}, \verb{:rainbow},
-\verb{:autopair} and \verb{:ai} use the same file.
+\verb{:autopair}, \verb{:match} and \verb{:ai} use the same file.
 Explicit arguments to \code{\link[=repl_config]{repl_config()}} override saved values for that session.
 Use \code{repl_config(settings_file = NULL)} for a fully temporary configuration,
 or \code{persist = FALSE} to read preferences without saving console changes.

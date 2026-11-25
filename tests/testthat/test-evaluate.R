@@ -44,9 +44,9 @@ test_that("implicit printing respects the supplied environment and custom classe
   env <- new.env(parent = baseenv())
   env$print.localmethod <- function(x, ...) { cat("CUSTOM_PRINT\n"); invisible(x) }
   env$x <- structure(list(a = 1), class = "localmethod")
-  expect_output(out <- evaluate_r("x", env, repl_config(preview = "print", color = FALSE)), "CUSTOM_PRINT")
+  expect_output(out <- evaluate_r("x", env, repl_config(settings_file = NULL, preview = "print", color = FALSE)), "CUSTOM_PRINT")
   expect_null(out$error)
-  expect_output(out <- evaluate_r("x", env, repl_config(preview = "auto", color = FALSE)), "CUSTOM_PRINT")
+  expect_output(out <- evaluate_r("x", env, repl_config(settings_file = NULL, preview = "auto", color = FALSE)), "CUSTOM_PRINT")
   expect_null(out$error)
   locked <- new.env(parent = baseenv())
   lockEnvironment(locked)
@@ -61,7 +61,7 @@ test_that("parsing and print-method errors are reported", {
   env <- new.env(parent = baseenv())
   env$print.bad <- function(x, ...) stop("print failed")
   env$x <- structure(1, class = "bad")
-  cfg <- repl_config(preview = "print", color = FALSE)
+  cfg <- repl_config(settings_file = NULL, preview = "print", color = FALSE)
   # S3 print dispatch sees methods defined in the evaluation environment.
   out <- evaluate_r("print(x)", env, cfg, display = FALSE)
   expect_match(conditionMessage(out$error), "print failed", fixed = TRUE)

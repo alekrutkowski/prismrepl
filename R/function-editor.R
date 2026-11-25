@@ -178,6 +178,11 @@
       gsub("[\r\n\t]", " ", .safe_text(event$text))), 1L, 200L)
     return(state)
   }
+  if (identical(action, "function_help")) {
+    state$editor <- .editor_request_help(state$editor)
+    if (length(state$editor$overlay)) state$status <- paste(state$editor$overlay, collapse = " ")
+    return(state)
+  }
   if (action %in% c("escape", "cancel") || (ctrl && key == "x")) { state$quit <- TRUE; return(state) }
   if (ctrl && key == "s") { state$save <- TRUE; return(state) }
   if (ctrl && key == "w") { state$searching <- TRUE; return(state) }
@@ -203,7 +208,8 @@
     direction <- if (action %in% c("up", "scroll_up", "history_previous")) -1L else 1L
     step <- if (action %in% c("scroll_up", "scroll_down")) max(1L, frame$editor_height - 1L) else 1L
     state$editor <- .function_editor_move(state$editor, frame$editor, direction * step)
-  } else if (action == "help") state$status <- "Ctrl+S save; Ctrl+X close; Ctrl+Z undo; Ctrl+Y redo; Ctrl+W find; Ctrl+N next; Tab completes."
+  } else if (action == "help") state$status <- paste0("Ctrl+S save; Ctrl+X close; Ctrl+Z undo; Ctrl+Y redo; Ctrl+W find; Ctrl+N next; Tab completes; ",
+    .editor_key_label(config, "function_help", "F1"), " function help.")
   else {
     local <- config
     if (action %in% c("submit", "newline")) {
@@ -262,7 +268,8 @@
     rows[[height - 1L]] <- .screen_paint(.screen_fit(paste0(" ", status), width), "status", config)
   }
   if (footer >= 1L) rows[[height]] <- .screen_paint(.screen_fit(paste0(" ", .footer_hints(
-    c("Ctrl+S" = "save", "Ctrl+X" = "close", "Ctrl+Z" = "undo", "Ctrl+W" = "find", "Ctrl+N" = "next"),
+    c("Ctrl+S" = "save", "Ctrl+X" = "close", "Ctrl+Z" = "undo", "Ctrl+W" = "find", "Ctrl+N" = "next",
+      stats::setNames("docs", .editor_key_label(config, "function_help", "F1"))),
     config, max(1L, width - 1L))), width), "status", config)
   out <- list(lines = rows, cursor_row = header + editor$cursor_row,
     cursor_column = min(width - 1L, 1L + editor$cursor_column),
@@ -319,6 +326,13 @@
     if (is.null(event)) next
     if (identical(event$type, "resize")) { size <- term_size(); previous <- NULL; redraw <- TRUE; next }
     state <- .function_editor_apply(state, event, config, envir, frame)
+    if (!is.null(state$editor$help_request)) {
+      state$editor <- .editor_open_help(state$editor, config, session$handle)
+      if (length(state$editor$overlay)) state$status <- paste(state$editor$overlay, collapse = " ")
+      size <- term_size()
+      previous <- NULL
+      mouse <- .mouse_state()
+    }
     if (state$quit) break
     if (state$save) {
       text <- paste0(state$editor$chars, collapse = "")

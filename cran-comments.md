@@ -1,52 +1,89 @@
-## New submission
+## Resubmission
 
-prismrepl is an explicitly started interactive terminal console for R, with
-Unicode editing, completion, searchable history, structured conditions,
-workspace/file exploration, installed documentation, a function editor and
-configurable browser links for error explanations. Its responsive interface
-provides matching-delimiter colors, automatic pairing, selectable themes,
-persistent preferences and OS appearance detection for an initial theme.
+prismrepl 0.6.4 supports R >= 4.5.0. The R 4.5 binding inspector now
+distinguishes a directly missing binding from a forced promise containing
+the missing-argument sentinel without cloning an environment. It uses
+exported rlang helpers and supported R C APIs, excludes active and delayed
+bindings before reading values, and retains the optimized R >= 4.6 path.
+Native routines are registered.
 
-Loading the package starts no terminal, writes no preferences and accesses
-no network. Configuration reads a bounded data-only preference file and can
-read local desktop appearance settings. An initial resolved theme is saved
-only when the console starts with persistence enabled. Explicit preference
-commands and the settings API save user-requested choices.
+The regression was reproduced with rlang 1.3.0. Focused tests pass on
+R 4.5.0 with rlang 1.1.5 and 1.3.0 and on R 4.6.2 with rlang 1.3.0.
+Batch :attach preserves single-package behavior and stops at the first
+error. Existing batch :detach behavior and protections remain.
 
-CRAN package-name downloads start after an explicit completion or refresh
-request and run outside the input loop. Examples use temporary paths and
-guard interactive entry points. Tests run offline without opening browsers
-or native terminal sessions; separate developer/CI scripts exercise real
-terminals. AI links are constructed locally, with no automatic transmission.
-Clipboard copying requires an explicit user action.
+## Complete checks of the source archive
 
-The native binding inspector uses the documented R_GetBindingType API, so
-R >= 4.6.0 is declared. Native routines are registered and symbol-based.
+The archive was produced by R CMD build under R 4.6.2. Its SHA-256 is:
+6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
 
-## Locally completed environment and checks
+This exact archive completed R CMD check --as-cran, including PDF and HTML
+manuals, on Debian GNU/Linux 13, x86-64:
 
-- R 4.6.2 on Debian GNU/Linux 13, x86-64.
-- R CMD check --as-cran --no-manual: 0 errors, 0 warnings, 1 NOTE.
-- NOTE: New submission.
-- 2,154 passing assertions in 234 test blocks; no failures, warnings or skips.
-- Ten real POSIX terminal suites passed, including theme selection and saved
-  preferences across a fresh R process, atomic data-frame column leaves,
-  theme-aware cursor tint and cursor cleanup on exit. Selectable option
-  menus, command staging, cancellation and saved choices also pass.
-- Native decoder AddressSanitizer/UndefinedBehaviorSanitizer checks passed.
-- Eleven offline release-manifest checks passed.
-- A Linux x86-64 R 4.6 binary was built in an isolated temporary library.
-- Windows ConPTY and six native platform builds are configured in CI;
-  Windows/macOS execution remains pending.
+- R 4.5.0 with rlang 1.3.0, audited UTC configuration: 0 errors,
+  0 warnings, 1 NOTE (New submission).
+- R 4.6.2 with rlang 1.3.0, inherited-flag configuration below:
+  0 errors, 0 warnings, 1 NOTE (New submission).
 
-External system-clock verification was disabled. Package tests, code checks
-and incoming checks remained enabled. PDF manual generation was omitted;
-Rd documentation, signatures, cross-references and examples were checked.
-LeakSanitizer was disabled because the container restricts ptrace;
-AddressSanitizer and UBSan remained enabled for the native decoder.
+Each suite passed 3,263 assertions with no failures, warnings or skips.
+Compilation flags and future file timestamps reported OK. The archive's
+SHA-256 was unchanged after checking. Full logs are retained.
 
-## Before submission
+An additional ordinary R 4.5.0 check also passed all 3,263 assertions and
+both manuals, with no errors or warnings. It retained New submission and
+unable to verify current time NOTEs; the package test fix does not depend
+on the UTC driver.
 
-Add the actual repository and issue URLs to DESCRIPTION, run the configured
-release/R-devel checks, record Windows/macOS results, and complete the manual
-terminal checklist. CRAN submission has not been performed.
+## Local checker configuration
+
+The R 4.6.2 run used a private copy of the installed runtime. Its interpreter
+and libR were byte-identical; its launcher path and private Makeconf were
+adjusted to reproduce Ubuntu's -mno-omit-leaf-frame-pointer in R's build
+defaults. The flag remained in all five package C compilation commands.
+
+After verifying provenance with R CMD config without user or site Makevars,
+a separate development tool added the inherited flag to
+_R_CHECK_COMPILATION_FLAGS_KNOWN_ in a private selected check environment.
+This follows the documented R Internals control for inherited build flags.
+_R_CHECK_COMPILATION_FLAGS_=TRUE remained enabled. The subsequent command
+was ordinary R CMD check --as-cran, with no custom driver, clock suppression
+or incoming-check suppression. A separate fixture confirmed that an unrelated
+package-added -Wconversion remains reported. The package supplies no
+leaf-frame flag and no Unix CFLAGS override.
+
+The R 4.5.0 run used the audited local driver because the older checker's
+external clock lookup was unavailable. Fresh certificate-verified HTTPS
+responses from CRAN, Google and Cloudflare agreed with the local UTC clock.
+Only after that preflight did a temporary child profile set
+_R_CHECK_SYSTEM_CLOCK_=FALSE. The actual timestamp check stayed enabled
+through _R_CHECK_FUTURE_FILE_TIMESTAMPS_=TRUE with five-minute leeway.
+Compilation-flag checking remained enabled. That R build lacked the
+leaf-frame flag, so no additional known flag was introduced.
+
+These local configurations are disclosed. Both development tools and these
+comments are excluded from the source archive. Package installation, loading
+and tests never run the repair or change checker profiles. The tools do not
+modify compiler commands or source timestamps or influence CRAN's settings.
+
+Native validation here was Linux x86-64. Windows, WSL2, macOS, ARM64 and
+R-devel execution is not claimed. Cross-platform jobs remain configured
+in GitHub Actions. See VALIDATION.md for the archive and evidence scope.
+
+## Intentional interactive behavior
+
+The REPL starts only when the user calls repl(). Loading does not start a
+console or alter terminal, history or startup files. Optional preferences
+and history writes follow explicit console use.
+
+The :attach, :install and :installgh commands perform user-requested actions.
+No software is installed on load, in examples or tests. The :shell command
+also requires an explicit submitted command; its tests use small local
+fixtures without network or installation. The :cd command intentionally
+changes R's working directory. Preview print output is captured as text;
+terminal prompts and display output are intentional. Git and clipboard
+helpers use bounded execution and appropriate quoting or stdin. AI links
+open only on explicit user request.
+
+NEWS is optional and omitted. This file is excluded by .Rbuildignore.
+Relevant contents can be pasted into the resubmission form's Optional
+comment field.

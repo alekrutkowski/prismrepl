@@ -76,7 +76,7 @@ test_that("status selection distinguishes no enabled fields from cancellation", 
     chosen
   })
   .repl_command(":status", state, new.env())
-  expect_identical(initial, c(TRUE, FALSE, FALSE, FALSE, TRUE))
+  expect_identical(initial, c(TRUE, FALSE, FALSE, FALSE, TRUE, FALSE))
   expect_identical(state$config$status, c("directory", "memory"))
   chosen <- c(2L, 4L)
   .repl_command(":status", state, new.env())

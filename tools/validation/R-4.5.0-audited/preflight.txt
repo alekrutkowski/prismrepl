@@ -1,0 +1,48 @@
+prismrepl source check
+State: completed
+Archive: /workspace/scratch/62ed418800ca/release064/prismrepl_0.6.4.tar.gz
+SHA-256: 6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
+R: 4.5.0
+Platform: x86_64-pc-linux-gnu
+
+This driver verifies UTC before starting the standard R CMD check.
+It replaces only R's duplicate external-time lookup for this child process.
+Compiler flags are unchanged; compiler and future-file checks remain enabled.
+
+Original check profile: /home/agent/.R/check.Renviron
+Original profile existed: FALSE
+Original profile fingerprint (MD5): NA
+
+Leaf-frame flag in active C settings: FALSE
+Leaf-frame flag inherited from R build: FALSE
+Added inherited flag to checker-known flags: FALSE
+
+Independent UTC verification: TRUE
+Verified at: 2026-11-25T15:30:00Z
+Maximum local-clock difference: 60 seconds
+HTTPS certificate verification is enabled. Sources must agree.
+     source                                 url status           remote_utc
+       CRAN         https://cran.r-project.org/    200 2026-11-25T15:29:49Z
+     Google https://www.google.com/generate_204    204 2026-11-25T15:29:54Z
+ Cloudflare         https://www.cloudflare.com/    200 2026-11-25T15:30:00Z
+   local_midpoint_utc offset_seconds duration_seconds uncertainty_seconds
+ 2026-11-25T15:29:46Z       2.735908             5.58               3.790
+ 2026-11-25T15:29:52Z       2.255096             5.25               3.625
+ 2026-11-25T15:29:57Z       2.874710             5.50               3.750
+ accepted fatal                    reason
+     TRUE FALSE fresh verified HTTPS Date
+     TRUE FALSE fresh verified HTTPS Date
+     TRUE FALSE fresh verified HTTPS Date
+
+Effective settings verified in a fresh matching R process:
+_R_CHECK_COMPILATION_FLAGS_=TRUE
+_R_CHECK_SYSTEM_CLOCK_=FALSE
+_R_CHECK_FUTURE_FILE_TIMESTAMPS_=TRUE
+_R_CHECK_FUTURE_FILE_TIMESTAMPS_LEEWAY_=5m
+
+Checker exit status: 0
+Driver exit status: 0
+Timestamp section OK: TRUE
+Compilation-flags section OK: TRUE
+Source archive unchanged: TRUE
+Status: 1 NOTE

@@ -25,4 +25,4 @@
                                                                                                                                    
                                                                                                                                    
  Items 1-12 of 12  selected 1  [/] batch  s sizes on                                                                               
- Enter open  Left parent  Tab view  / filter  F1 keys  q close                                                                     
+ Enter open  Left parent  Tab view  / filter  F2 keys  q close                                                                     

@@ -21,4 +21,4 @@
                                                                                                                          
                                                                                                                          
  Line 9/12  Column 34  Save replaces only describe_numbers in this workspace; close discards unsaved edits.              
- Ctrl+S save  Ctrl+X close  Ctrl+Z undo  Ctrl+W find  Ctrl+N next                                                        
+ Ctrl+S save  Ctrl+X close  Ctrl+Z undo  Ctrl+W find  Ctrl+N next  F1 docs                                               

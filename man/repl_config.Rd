@@ -11,7 +11,7 @@ repl_config(
   unicode = TRUE,
   history_file = NULL,
   history_limit = 1000L,
-  status = c("directory", "git"),
+  status = c("process_memory", "directory", "git"),
   preview = "auto",
   rows = 12L,
   width = NULL,
@@ -34,7 +34,8 @@ repl_config(
   rainbow = TRUE,
   autopair = TRUE,
   ai_provider = "mistral",
-  ai_url = NULL
+  ai_url = NULL,
+  match_pairs = TRUE
 )
 }
 \arguments{
@@ -53,8 +54,11 @@ or \code{midnight} otherwise and remembers it when persistence is enabled.}
 
 \item{history_limit}{Maximum number of history entries retained.}
 
-\item{status}{Status fields: \code{directory}, \code{git}, \code{objects}, \code{packages}, \code{memory}.
-Memory is the sum of approximate object sizes, not process resident memory.}
+\item{status}{Status fields: \code{process_memory}, \code{directory}, \code{git}, \code{objects},
+\code{packages}, \code{memory}. \code{process_memory} is enabled by default and reports the
+current R process's resident RAM from the operating system, including native
+allocations and loaded libraries. \code{memory} separately sums approximate
+workspace object sizes. Neither measurement forces garbage collection.}
 
 \item{preview}{Use bounded previews for ordinary objects (\code{"auto"}) or ordinary
 print methods (\code{"print"}). Custom S3/S4 classes retain their print methods.}
@@ -119,6 +123,10 @@ Defaults to \code{TRUE}.}
 
 \item{ai_url}{Optional HTTPS template containing exactly one \code{{prompt}} for
 \code{ai_provider = "custom"}. The placeholder receives URL-encoded UTF-8 text.}
+
+\item{match_pairs}{Highlight both endpoints when the cursor is on or just
+after a matching bracket or quote, including compound raw-string delimiters.
+Defaults to \code{TRUE}, independently of \code{rainbow} and \code{autopair}.}
 }
 \value{
 A validated \code{prismrepl_config} list.

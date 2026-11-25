@@ -133,11 +133,45 @@ test_that("quoted path completion preserves R string escaping", {
   directory <- tempfile()
   dir.create(directory)
   on.exit(unlink(directory, recursive = TRUE), add = TRUE)
-  file.create(file.path(directory, "two words.txt"))
-  input <- paste0('readLines("', directory, '/two')
-  candidates <- complete_r(input)$candidates
-  expect_true(any(endsWith(candidates, "/two words.txt")))
+  names <- c("two words.txt", "quote's file.txt")
+  paths <- file.path(directory, names)
+  file.create(paths)
+  lapply(c('"', "'"), function(quote) lapply(seq_along(paths), function(i) {
+    prefix <- encodeString(file.path(directory, substr(names[[i]], 1L, 3L)), quote = quote)
+    input <- paste0("readLines(", substr(prefix, 1L, nchar(prefix) - 1L))
+    result <- complete_r(input)
+    expect_length(result$candidates, 1L)
+    expect_identical(result$start, nchar(paste0("readLines(", quote)))
+    expect_identical(result$end, nchar(input))
+    completed <- paste0(substr(input, 1L, result$start), result$candidates[[1L]], quote, ")")
+    call <- parse(text = completed, keep.source = FALSE)[[1L]]
+    expect_identical(call[[1L]], as.name("readLines"))
+    resolved <- call[[2L]]
+    expect_type(resolved, "character")
+    expect_identical(normalizePath(resolved, winslash = "/", mustWork = TRUE),
+                     normalizePath(paths[[i]], winslash = "/", mustWork = TRUE))
+    expect_identical(basename(resolved), names[[i]])
+  }))
   expect_length(complete_r('readLines("https://example.org/fi')$candidates, 0L)
+})
+
+test_that("quoted Windows path completion decodes input and returns valid R source", {
+  complete <- .complete_path
+  environment(complete) <- list2env(list(
+    .Platform = list(OS.type = "windows"),
+    dir.exists = function(path) path == "D:/folder with spaces/",
+    list.files = function(path, ...) {
+      expect_identical(path, "D:/folder with spaces/")
+      c("two words.txt", "unrelated.R")
+    }), parent = environment(complete))
+  prefix <- encodeString("D:\\folder with spaces\\two", quote = '"')
+  input <- paste0("readLines(", substr(prefix, 1L, nchar(prefix) - 1L))
+  result <- complete(input, .completion_quote(input), nchar(input), 20L)
+  expect_identical(result$candidates, "D:/folder with spaces/two words.txt")
+  completed <- paste0(substr(input, 1L, result$start), result$candidates[[1L]], '\")')
+  call <- parse(text = completed, keep.source = FALSE)[[1L]]
+  expect_identical(call[[1L]], as.name("readLines"))
+  expect_identical(call[[2L]], "D:/folder with spaces/two words.txt")
 })
 
 test_that("viewport frames fit wide text and preserve cursor bounds", {

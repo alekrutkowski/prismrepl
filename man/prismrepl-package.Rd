@@ -4,11 +4,18 @@
 \name{prismrepl-package}
 \alias{prismrepl}
 \alias{prismrepl-package}
-\title{A Unicode-Aware Interactive Console for R}
+\title{Snappy and Rich Terminal Console}
 \description{
 Start \code{\link[=repl]{repl()}} from an interactive R terminal. Loading the package has no
 startup effects. See \code{\link[=repl_config]{repl_config()}} and \code{\link[=keymap]{keymap()}} for configuration and
 shortcuts, and the installed user guide for the command reference.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/alekrutkowski/prismrepl}
+}
+
 }
 \author{
 \strong{Maintainer}: Alek Rutkowski \email{alek.rutkowski@gmail.com} [copyright holder]

@@ -1,0 +1,24 @@
+ PRISM REPL  0.6.4                                                                           READY 
+ SESSION  live ────────────────────────────────────────────────────────────────────────────────────
+ r> names(flowers)                                                                                 
+ character  <character>  length 5                                                                  
+ [1] "Sepal.Length" "Sepal.Width"  "Petal.Length" "Petal.Width"  "Species" ...                     
+ r> message("Cursor pair focus: on. Rainbow delimiter colors: off.")                               
+ ╭─  • [MESSAGE]  ───────────────────────────────────────────────────────────────────────────────╮ 
+ │ Cursor pair focus: on. Rainbow delimiter colors: off.                                         │ 
+ ╰───────────────────────────────────────────────────────────────────────────────────────────────╯ 
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+                                                                                                   
+ R  edit ──────────────────────────────────────────────────────────────────────────────────────────
+ r> notes <- r"---{                                                                                
+ +    Brackets stay literal: (x[1]) and {y}                                                        
+ +    Quotes stay literal: "text" and 'text'                                                       
+ +  }---"                                                                                          
+ R RAM: 192.2 MiB  |  objects: 1  |  objects ~7.1 Kb                                               
+ Enter run  Ctrl+J newline  Tab complete  Ctrl+R history  F1 docs  F2 keys  PageUp scroll          

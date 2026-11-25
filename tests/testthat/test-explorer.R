@@ -191,7 +191,7 @@ test_that("explorer frames fit narrow windows and preserve safe Unicode labels",
     expect_false(any(grepl("\n", frame, fixed = TRUE)))
   }))
   expect_match(.explorer_load(state$stack[[1L]])$data$name[[2L]], "line\\nname", fixed = TRUE)
-  state <- .explorer_apply(state, explorer_test_event("f1"), cfg)
+  state <- .explorer_apply(state, explorer_test_event("f2"), cfg)
   expect_true(state$help)
   state <- .explorer_apply(state, explorer_test_event(text = "q"), cfg)
   expect_false(state$help)

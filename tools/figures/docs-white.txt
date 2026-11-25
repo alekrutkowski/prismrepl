@@ -48,4 +48,4 @@
   xm <- mean(x)                                                                                                          
   c(xm, mean(x, trim = 0.10))                                                                                            
  Search: mean  Match 1/14  All occurrences highlighted; n/p moves between them                                           
- Up/Down line  PageUp/PageDown page  / search  n/p match  F1 keys  q close                                               
+ Up/Down line  PageUp/PageDown page  / search  n/p match  F2 keys  q close                                               

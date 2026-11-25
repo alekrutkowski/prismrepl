@@ -22,6 +22,8 @@ import termios
 import time
 import unicodedata
 
+from pty_support import terminal_snapshot
+
 
 source = Path(__file__).with_name("pty-fullscreen.py")
 model_ast = next(node for node in ast.parse(source.read_text(encoding="utf-8")).body
@@ -37,7 +39,7 @@ temporary = tempfile.TemporaryDirectory(prefix="prism-options-")
 preferences = Path(temporary.name) / "preferences.dcf"
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 120, 0, 0))
-original_modes = termios.tcgetattr(slave)
+original_modes = terminal_snapshot(slave)
 model = Screen(30, 120)
 raw = bytearray()
 phase = "startup"
@@ -90,9 +92,13 @@ def wait_title(title):
 
 def wait_prompt(staged=""):
     def ready():
-        line = "".join(model.cells[model.row]).rstrip()
+        line = "".join(model.cells[model.row]).strip()
+        # A closing viewer repaints its parent before the selected command
+        # applies or saves anything. The editor is ready only when native
+        # input reopens, enabling bracketed paste after the viewer disabled it.
+        input_open = raw.rfind(b"\x1b[?2004h") > raw.rfind(b"\x1b[?2004l")
         return (model.text().splitlines()[0].lstrip().startswith("PRISM REPL") and
-                model.cursor_visible and ("r> " + staged).rstrip() in line)
+                input_open and model.cursor_visible and line == ("r> " + staged).rstrip())
     wait_until(ready, f"editable prompt {staged!r}")
 
 
@@ -280,7 +286,7 @@ try:
     wait_for("OPTIONS_PTY_DONE")
     process.wait(timeout=10)
     assert process.returncode == 0, process.returncode
-    assert termios.tcgetattr(slave) == original_modes, "Input modes were not restored"
+    assert terminal_snapshot(slave) == original_modes, "Input modes were not restored"
     assert model.enters == model.leaves == 1, (model.enters, model.leaves)
     assert model.alternate_scrolls == 0, model.alternate_scrolls
     assert not model.bad_cursor, model.bad_cursor
