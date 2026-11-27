@@ -102,6 +102,170 @@ Loading or attaching the package does not start the console or change your
 `.Rprofile`, terminal settings, global condition handlers or history files.
 `:quit`, or `:q`, returns to the ordinary R prompt without closing R.
 
+### Launch Prism directly from a terminal
+
+You can create a custom terminal command, `prismr`, that starts R and
+automatically launches Prism. This leaves your regular R startup
+configuration unchanged, so you can still start a standard R session
+whenever you want.
+
+The following instructions assume that `prismrepl` is already installed.
+
+#### Linux (including WSL2)
+
+These instructions assume that you use the Bash shell.
+
+**Step 1.** Create a small R startup script in your home directory.
+Run the following command in your terminal:
+
+```bash
+echo 'prismrepl::repl()' > "$HOME/start_prismrepl.R"
+```
+
+The resulting `start_prismrepl.R` file contains just one line:
+
+```r
+prismrepl::repl()
+```
+
+**Step 2.** Open your Bash configuration file in a text editor:
+
+```bash
+nano ~/.bashrc
+```
+
+Add the following line at the end of the file:
+
+```bash
+alias prismr='R_PROFILE_USER="$HOME/start_prismrepl.R" R'
+```
+
+Save the file and close the editor (in Nano, press Ctrl+O, Enter,
+and then Ctrl+X).
+
+**Step 3.** Reload your Bash configuration:
+
+```bash
+source ~/.bashrc
+```
+
+You can now use the following commands in any new Bash terminal:
+
+```bash
+R             # Start a regular R session
+prismr        # Start R with Prism
+prismr -q     # Start R with Prism, without the R startup banner
+```
+
+#### Windows (PowerShell)
+
+Open Windows Terminal with a PowerShell tab.
+
+**Step 1.** Create a small R startup script in your home directory:
+
+```powershell
+Set-Content -Path "$HOME/start_prismrepl.R" -Value 'prismrepl::repl()' -Encoding ascii
+```
+
+The resulting `start_prismrepl.R` file contains just one line:
+
+```r
+prismrepl::repl()
+```
+
+**Step 2.** Create a PowerShell profile if you do not already have one,
+and open it in Notepad:
+
+```powershell
+if (!(Test-Path $PROFILE)) {
+    New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+}
+notepad $PROFILE
+```
+
+The PowerShell profile is a script that runs automatically whenever
+you open a corresponding PowerShell session. It serves a similar
+purpose to `.bashrc` on Linux.
+
+**Step 3.** Add the following function to your PowerShell profile:
+
+```powershell
+function prismr {
+    & "C:\Program Files\R\R-4.6.2\bin\x64\Rterm.exe" "R_PROFILE_USER=$HOME/start_prismrepl.R" @args
+}
+```
+
+Adjust the path to `Rterm.exe` to match your R installation.
+For native ARM64 installations of R, the path does not contain
+the `x64` directory.
+
+If `Rterm.exe` is already available on your system's `PATH`,
+you can use a simpler, version-independent definition instead:
+
+```powershell
+function prismr {
+    & Rterm.exe "R_PROFILE_USER=$HOME/start_prismrepl.R" @args
+}
+```
+
+The `@args` expression passes any additional command-line
+arguments to R.
+
+Save the file and close Notepad.
+
+**Step 4.** Reload your PowerShell profile:
+
+```powershell
+. $PROFILE
+```
+
+If PowerShell reports that script execution is disabled, you can
+allow locally created scripts for your user account by running
+the following command, provided your organisation's security
+policy permits it:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Then reload the profile again or open a new PowerShell tab.
+
+You can now start Prism directly from PowerShell:
+
+```powershell
+prismr        # Start R with Prism
+prismr -q     # Start R with Prism, without the R startup banner
+```
+
+Your usual methods of starting R remain available and unchanged.
+
+#### How it works
+
+R supports an environment variable called `R_PROFILE_USER`,
+which specifies the path to an R script to be executed during
+startup.
+
+On Linux, Bash sets this variable temporarily when launching R.
+On Windows, `Rterm.exe` also accepts environment variable
+assignments as command-line arguments.
+
+In both cases, the custom startup script is used only when
+launching R through the `prismr` command. There is no need to
+modify your `.Rprofile` or `.Renviron` files, or to set a permanent
+environment variable.
+
+Keep in mind that the custom startup script replaces your usual
+user or project `.Rprofile` for that session. It also runs before
+R attaches its default packages and restores any saved workspace.
+For details, see the
+[R startup documentation](https://search.r-project.org/R/refmans/base/html/Startup.html).
+
+To leave Prism and return to the ordinary R prompt, type `:quit`
+or `:q`. You can then continue using R normally.
+
+Do not use `--vanilla` or `--no-init-file` with the `prismr`
+command, as these options disable the custom startup script.
+
 ### A first session
 
 Type these in Prism's input area, one at a time:
