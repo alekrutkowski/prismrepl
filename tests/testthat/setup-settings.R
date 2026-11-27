@@ -4,6 +4,7 @@
 local({
   teardown <- testthat::teardown_env()
   directory <- withr::local_tempdir("prism-test-settings-", .local_envir = teardown)
-  withr::local_envvar(c(PRISMREPL_CONFIG_FILE = file.path(directory, "preferences.dcf")),
+  withr::local_envvar(c(PRISMREPL_CONFIG_FILE = file.path(directory, "preferences.dcf"),
+                      PRISMREPL_COMMANDS_FILE = file.path(directory, "commands.rds")),
     .local_envir = teardown)
 })

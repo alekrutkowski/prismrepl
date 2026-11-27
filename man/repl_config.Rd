@@ -35,7 +35,8 @@ repl_config(
   autopair = TRUE,
   ai_provider = "mistral",
   ai_url = NULL,
-  match_pairs = TRUE
+  match_pairs = TRUE,
+  commands_file = repl_commands_file(settings_file)
 )
 }
 \arguments{
@@ -127,6 +128,13 @@ Defaults to \code{TRUE}.}
 \item{match_pairs}{Highlight both endpoints when the cursor is on or just
 after a matching bracket or quote, including compound raw-string delimiters.
 Defaults to \code{TRUE}, independently of \code{rainbow} and \code{autopair}.}
+
+\item{commands_file}{Persistent custom-command registry. By default it is
+\code{\link[=repl_commands_file]{repl_commands_file()}} beside the selected preferences file. \code{NULL} uses
+only commands explicitly registered for this R session with \code{file = NULL}.
+A temporary \code{settings_file = NULL} also defaults to session-only commands.
+Relative paths are resolved when this configuration is created, so changing
+the working directory keeps the selected registry.}
 }
 \value{
 A validated \code{prismrepl_config} list.

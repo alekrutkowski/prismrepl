@@ -391,18 +391,18 @@
 #' @param limit Maximum candidates.
 #' @return A completion record, or NULL for ordinary R input.
 #' @noRd
-.complete_command <- function(text, cursor, envir, limit) {
+.complete_command <- function(text, cursor, envir, limit, commands_file = repl_commands_file()) {
   stopifnot("text must be a scalar string" = is.character(text) && length(text) == 1L && !is.na(text),
             "cursor must be in the text" = .is_count(cursor) && cursor <= nchar(text),
             "workspace must be an environment" = is.environment(envir), "limit must be positive" = .is_count(limit, 1L))
   before <- substr(text, 1L, cursor)
   if (!grepl("^[[:blank:]]*:", before)) return(NULL)
-  catalog <- .command_catalog()
+  catalog <- .command_catalog(commands_file)
   leading <- nchar(before) - nchar(sub("^[[:blank:]]*", "", before))
   head <- substring(before, leading + 1L)
   if (!grepl("[[:blank:]]", head)) {
     token <- tolower(substring(head, 2L))
-    pool <- c(catalog$id, catalog$alias)
+    pool <- c(catalog$id, catalog$alias[nzchar(catalog$alias)])
     pool <- paste0(":", sort(unique(pool[startsWith(pool, token)])))
     return(list(start = as.integer(leading), end = as.integer(cursor), candidates = utils::head(pool, limit)))
   }
@@ -420,6 +420,7 @@
   token <- substr(before, start + 1L, cursor)
   note <- ""
   pool <- switch(command,
+    commands = .custom_command_catalog(commands_file)$id,
     attach = base::.packages(all.available = TRUE),
     docs = base::.packages(all.available = TRUE),
     install = {

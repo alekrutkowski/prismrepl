@@ -8,7 +8,8 @@ complete_r(
   text,
   cursor = nchar(text, type = "chars"),
   envir = .GlobalEnv,
-  limit = 200L
+  limit = 200L,
+  commands_file = repl_commands_file()
 )
 }
 \arguments{
@@ -19,6 +20,10 @@ complete_r(
 \item{envir}{Environment used to find visible names.}
 
 \item{limit}{Maximum number of candidates.}
+
+\item{commands_file}{Custom registry path used for colon-command completion,
+or NULL for session-only custom commands. Functions are not invoked or
+deserialized for name completion.}
 }
 \value{
 A list containing \code{start} and \code{end}, the zero-based code-point offsets

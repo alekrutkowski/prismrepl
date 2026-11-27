@@ -3,7 +3,7 @@
 These images rasterize the actual ANSI output and grapheme cell widths returned
 by `prismrepl`'s fullscreen, palette, documentation, function-editor and object-explorer compositors. They are reproducible developer figures,
 not screenshots of Windows Terminal or another operating system.
-They use prismrepl 0.6.4 sources and its installed native backend with R 4.6.2
+They use prismrepl 0.6.5 sources and its installed native backend with R 4.6.2
 on Linux; each JSON capture records the package and R versions.
 
 The example evaluates R code in a real session environment. It prints three rows

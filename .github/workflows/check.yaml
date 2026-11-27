@@ -87,6 +87,7 @@ jobs:
           python3 tools/pty-fullscreen.py
           python3 tools/pty-explorer.py
           python3 tools/pty-commands.py
+          python3 tools/pty-custom-commands.py
           python3 tools/pty-shell.py
           python3 tools/pty-options.py
           python3 tools/pty-docs.py

@@ -1,0 +1,3 @@
+PASS: persisted closures across R processes, custom alias and Tab completion,
+description-search palette staging, single/multiple/variadic string arguments,
+condition blocks and error recovery, colon history, and exact terminal restoration.

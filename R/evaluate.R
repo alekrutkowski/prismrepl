@@ -24,10 +24,24 @@
 #' result <- evaluate_r("stop('example')", env, display = FALSE)
 #' conditionMessage(result$error)
 evaluate_r <- function(code, envir = .GlobalEnv, config = repl_config(), display = TRUE) {
+  .evaluate_r(code, envir, config, display)
+}
+
+#' Evaluate Text or Preconstructed Expressions Through One Condition Pipeline
+#' @param code Source text retained for display and error explanations.
+#' @param envir Evaluation environment.
+#' @param config Console configuration.
+#' @param display Display visible results and conditions.
+#' @param expressions Optional expression vector, retaining registered closures.
+#' @return The same structured result as evaluate_r().
+#' @noRd
+.evaluate_r <- function(code, envir, config, display, expressions = NULL) {
   stopifnot("code must be nonmissing character text" = is.character(code) && !anyNA(code),
             "envir must be an environment" = is.environment(envir),
             "config must be a console configuration" = inherits(config, "prismrepl_config"),
-            "display must be a logical scalar" = .is_flag(display))
+            "display must be a logical scalar" = .is_flag(display),
+            "expressions must be NULL or an expression vector" =
+              is.null(expressions) || is.expression(expressions))
   source <- paste(code, collapse = "\n")
   started <- proc.time()[["elapsed"]]
   result <- list(value = NULL, visible = FALSE, error = NULL, warnings = list(),
@@ -55,8 +69,8 @@ evaluate_r <- function(code, envir = .GlobalEnv, config = repl_config(), display
     if (!is.null(restart)) invokeRestart(restart)
   }
   tryCatch(withCallingHandlers({
-    expressions <- parse(text = source, keep.source = TRUE)
-    invisible(lapply(expressions, function(expr) {
+    parsed <- if (is.null(expressions)) parse(text = source, keep.source = TRUE) else expressions
+    invisible(lapply(parsed, function(expr) {
       active_depth <<- sys.nframe()
       answer <- withVisible(eval(expr, envir = envir))
       result["value"] <<- list(answer$value)

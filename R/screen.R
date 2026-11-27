@@ -4,7 +4,7 @@
 #' @return A session-local environment; no terminal changes are made.
 #' @keywords internal
 #' @noRd
-screen_state <- function(max_lines = 4000L, title = "PRISM REPL", version = "0.6.4") {
+screen_state <- function(max_lines = 4000L, title = "PRISM REPL", version = "0.6.5") {
   stopifnot("max_lines must be a positive integer" = .is_count(max_lines, 1L),
             "title and version must be text" = .is_text(title) && .is_text(version))
   out <- new.env(parent = emptyenv())

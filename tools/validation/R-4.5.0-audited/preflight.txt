@@ -1,7 +1,7 @@
 prismrepl source check
 State: completed
-Archive: /workspace/scratch/62ed418800ca/release064/prismrepl_0.6.4.tar.gz
-SHA-256: 6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
+Archive: /workspace/scratch/62ed418800ca/release065/prismrepl_0.6.5.tar.gz
+SHA-256: f25b8b9773dbd9633ba4392a24c9f4cd31fde151bbf6cc97ae7c1e9e5db4635c
 R: 4.5.0
 Platform: x86_64-pc-linux-gnu
 
@@ -18,17 +18,17 @@ Leaf-frame flag inherited from R build: FALSE
 Added inherited flag to checker-known flags: FALSE
 
 Independent UTC verification: TRUE
-Verified at: 2026-11-25T15:30:00Z
+Verified at: 2026-11-27T10:33:27Z
 Maximum local-clock difference: 60 seconds
 HTTPS certificate verification is enabled. Sources must agree.
      source                                 url status           remote_utc
-       CRAN         https://cran.r-project.org/    200 2026-11-25T15:29:49Z
-     Google https://www.google.com/generate_204    204 2026-11-25T15:29:54Z
- Cloudflare         https://www.cloudflare.com/    200 2026-11-25T15:30:00Z
+       CRAN         https://cran.r-project.org/    200 2026-11-27T10:33:16Z
+     Google https://www.google.com/generate_204    204 2026-11-27T10:33:22Z
+ Cloudflare         https://www.cloudflare.com/    200 2026-11-27T10:33:27Z
    local_midpoint_utc offset_seconds duration_seconds uncertainty_seconds
- 2026-11-25T15:29:46Z       2.735908             5.58               3.790
- 2026-11-25T15:29:52Z       2.255096             5.25               3.625
- 2026-11-25T15:29:57Z       2.874710             5.50               3.750
+ 2026-11-27T10:33:13Z       2.968612             6.39               4.195
+ 2026-11-27T10:33:19Z       3.034750             5.34               3.670
+ 2026-11-27T10:33:24Z       2.643738             5.42               3.710
  accepted fatal                    reason
      TRUE FALSE fresh verified HTTPS Date
      TRUE FALSE fresh verified HTTPS Date

@@ -1,89 +1,66 @@
-## Resubmission
+## Submission
 
-prismrepl 0.6.4 supports R >= 4.5.0. The R 4.5 binding inspector now
-distinguishes a directly missing binding from a forced promise containing
-the missing-argument sentinel without cloning an environment. It uses
-exported rlang helpers and supported R C APIs, excludes active and delayed
-bindings before reading values, and retains the optimized R >= 4.6 path.
-Native routines are registered.
+prismrepl 0.6.5 supports R >= 4.5.0. It provides an explicitly started terminal
+console with structured output, editing, completion, documentation and object
+inspection. Persistent custom colon commands can be registered as R functions;
+arguments are passed as literal scalar character strings. Saved definitions
+are restored only when the user invokes the command. Metadata-only help and
+completion do not execute command bodies.
 
-The regression was reproduced with rlang 1.3.0. Focused tests pass on
-R 4.5.0 with rlang 1.1.5 and 1.3.0 and on R 4.6.2 with rlang 1.3.0.
-Batch :attach preserves single-package behavior and stops at the first
-error. Existing batch :detach behavior and protections remain.
+Project URL: https://github.com/alekrutkowski/prismrepl
 
-## Complete checks of the source archive
+## Exact source and complete checks
 
-The archive was produced by R CMD build under R 4.6.2. Its SHA-256 is:
-6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
+The submitted artifact is the source tarball produced by R CMD build:
 
-This exact archive completed R CMD check --as-cran, including PDF and HTML
-manuals, on Debian GNU/Linux 13, x86-64:
+prismrepl_0.6.5.tar.gz
+SHA-256: f25b8b9773dbd9633ba4392a24c9f4cd31fde151bbf6cc97ae7c1e9e5db4635c
 
-- R 4.5.0 with rlang 1.3.0, audited UTC configuration: 0 errors,
-  0 warnings, 1 NOTE (New submission).
-- R 4.6.2 with rlang 1.3.0, inherited-flag configuration below:
-  0 errors, 0 warnings, 1 NOTE (New submission).
+On 27 November 2026, this exact archive passed complete --as-cran checks on
+Linux x86-64, Debian 13, using R 4.5.0 and R 4.6.2 with rlang 1.3.0.
+Each run reported 0 ERRORs, 0 WARNINGs and 1 NOTE, containing the maintainer
+identity and New submission. Each test run passed 3,610 assertions with no
+failures, warnings or skips. Examples, PDF and HTML manuals, future-file
+timestamps and compilation flags all checked OK. PDF generation remained
+enabled, using R_RD4PDF=times,hyper.
 
-Each suite passed 3,263 assertions with no failures, warnings or skips.
-Compilation flags and future file timestamps reported OK. The archive's
-SHA-256 was unchanged after checking. Full logs are retained.
+R 4.6.2 used ordinary R CMD check --as-cran. For R 4.5.0, an explicit local
+check driver verified UTC independently from fresh HTTPS Date responses from
+CRAN, Google and Cloudflare. It then set _R_CHECK_SYSTEM_CLOCK_=FALSE in a
+private child-process profile, while keeping
+_R_CHECK_FUTURE_FILE_TIMESTAMPS_=TRUE,
+_R_CHECK_FUTURE_FILE_TIMESTAMPS_LEEWAY_=5m and
+_R_CHECK_COMPILATION_FLAGS_=TRUE. The audit and logs are provided in the
+repository's tools/validation directory. The driver changed no source
+file timestamp, compiler flag or persistent user configuration.
 
-An additional ordinary R 4.5.0 check also passed all 3,263 assertions and
-both manuals, with no errors or warnings. It retained New submission and
-unable to verify current time NOTEs; the package test fix does not depend
-on the UTC driver.
+Neither R build in these runs inherited -mno-omit-leaf-frame-pointer; no
+known-flag exception was added. Optional local diagnostic/setup tools are
+excluded from the CRAN source tarball and are never run by installation,
+loading, examples or package tests.
 
-## Local checker configuration
-
-The R 4.6.2 run used a private copy of the installed runtime. Its interpreter
-and libR were byte-identical; its launcher path and private Makeconf were
-adjusted to reproduce Ubuntu's -mno-omit-leaf-frame-pointer in R's build
-defaults. The flag remained in all five package C compilation commands.
-
-After verifying provenance with R CMD config without user or site Makevars,
-a separate development tool added the inherited flag to
-_R_CHECK_COMPILATION_FLAGS_KNOWN_ in a private selected check environment.
-This follows the documented R Internals control for inherited build flags.
-_R_CHECK_COMPILATION_FLAGS_=TRUE remained enabled. The subsequent command
-was ordinary R CMD check --as-cran, with no custom driver, clock suppression
-or incoming-check suppression. A separate fixture confirmed that an unrelated
-package-added -Wconversion remains reported. The package supplies no
-leaf-frame flag and no Unix CFLAGS override.
-
-The R 4.5.0 run used the audited local driver because the older checker's
-external clock lookup was unavailable. Fresh certificate-verified HTTPS
-responses from CRAN, Google and Cloudflare agreed with the local UTC clock.
-Only after that preflight did a temporary child profile set
-_R_CHECK_SYSTEM_CLOCK_=FALSE. The actual timestamp check stayed enabled
-through _R_CHECK_FUTURE_FILE_TIMESTAMPS_=TRUE with five-minute leeway.
-Compilation-flag checking remained enabled. That R build lacked the
-leaf-frame flag, so no additional known flag was introduced.
-
-These local configurations are disclosed. Both development tools and these
-comments are excluded from the source archive. Package installation, loading
-and tests never run the repair or change checker profiles. The tools do not
-modify compiler commands or source timestamps or influence CRAN's settings.
-
-Native validation here was Linux x86-64. Windows, WSL2, macOS, ARM64 and
-R-devel execution is not claimed. Cross-platform jobs remain configured
-in GitHub Actions. See VALIDATION.md for the archive and evidence scope.
+Native execution here was Linux x86-64. Windows, WSL2, macOS, ARM64 and
+R-devel execution is not claimed. Their configured GitHub jobs require
+separate execution. See VALIDATION.md for evidence and scope.
 
 ## Intentional interactive behavior
 
-The REPL starts only when the user calls repl(). Loading does not start a
-console or alter terminal, history or startup files. Optional preferences
-and history writes follow explicit console use.
+The console starts only after an explicit call to repl(). Loading does not
+start a console or alter terminal, history, preference or startup files.
+Persistent preferences/history follow console use. Custom command files are
+written only by explicit registration or removal; the default registry is
+separate from the data-only preference file. Examples and tests use temporary
+registries, with environment overrides restored on exit.
 
-The :attach, :install and :installgh commands perform user-requested actions.
-No software is installed on load, in examples or tests. The :shell command
-also requires an explicit submitted command; its tests use small local
-fixtures without network or installation. The :cd command intentionally
-changes R's working directory. Preview print output is captured as text;
-terminal prompts and display output are intentional. Git and clipboard
-helpers use bounded execution and appropriate quoting or stdin. AI links
-open only on explicit user request.
+The :attach, :install and :installgh commands perform user-requested package
+operations. No software is installed on load, in examples or tests. The :shell
+command and custom R commands also require explicit invocation. The :cd command
+intentionally changes the working directory. Preview print output is captured
+as text; input prompts and terminal output are part of the console's purpose.
+Git and clipboard helpers use bounded execution and quoted arguments or stdin.
+AI links require explicit use and do not transmit prompts during package load.
 
-NEWS is optional and omitted. This file is excluded by .Rbuildignore.
-Relevant contents can be pasted into the resubmission form's Optional
-comment field.
+No new runtime dependency is added by custom commands. The native C sources
+are unchanged. NEWS is optional and omitted. These comments and validation
+records are excluded by .Rbuildignore; relevant text can be included in the
+submission form's Optional comment field.

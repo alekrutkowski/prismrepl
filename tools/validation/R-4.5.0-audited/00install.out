@@ -1,5 +1,5 @@
 * installing *source* package ‘prismrepl’ ...
-** this is package ‘prismrepl’ version ‘0.6.4’
+** this is package ‘prismrepl’ version ‘0.6.5’
 ** using staged installation
 ** libs
 using C compiler: ‘gcc (Debian 14.2.0-19) 14.2.0’
@@ -9,7 +9,7 @@ gcc -std=gnu23 -I"/workspace/scratch/62ed418800ca/runtime/root/usr/share/R/inclu
 gcc -std=gnu23 -I"/workspace/scratch/62ed418800ca/runtime/root/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.5.0=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c memory.c -o memory.o
 gcc -std=gnu23 -I"/workspace/scratch/62ed418800ca/runtime/root/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.5.0=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c terminal.c -o terminal.o
 gcc -std=gnu23 -shared -L/workspace/scratch/62ed418800ca/runtime/root/usr/lib/R/lib -Wl,-z,relro -o prismrepl.so clipboard.o init.o keyparse.o memory.o terminal.o -L/workspace/scratch/62ed418800ca/runtime/root/usr/lib/R/lib -lR
-installing to /workspace/scratch/62ed418800ca/candidate064-R45/00LOCK-prismrepl/00new/prismrepl/libs
+installing to /workspace/scratch/62ed418800ca/runtime/validation065/R-4.5.0-audited/prismrepl.Rcheck/00LOCK-prismrepl/00new/prismrepl/libs
 ** R
 ** inst
 ** byte-compile and prepare package for lazy loading

@@ -14,14 +14,20 @@ check_settings_isolation <- function(root = ".") {
   inherited <- file.path(directory, "personal-preferences.dcf")
   writeLines(c("Version: 1", "AI-Provider: chatgpt", "Theme: white"), inherited)
   original <- readBin(inherited, "raw", n = file.info(inherited)$size)
-  withr::local_envvar(c(PRISMREPL_CONFIG_FILE = inherited))
+  inherited_commands <- file.path(directory, "personal-commands.rds")
+  saveRDS(list(version = 1L, untouched = "personal registry sentinel"), inherited_commands)
+  original_commands <- readBin(inherited_commands, "raw", n = file.info(inherited_commands)$size)
+  withr::local_envvar(c(PRISMREPL_CONFIG_FILE = inherited,
+                      PRISMREPL_COMMANDS_FILE = inherited_commands))
 
   suite <- file.path(directory, "tests")
   stopifnot("probe suite directory must be created" = dir.create(suite),
     "the real setup file must be copied unchanged" = file.copy(setup, suite))
   fixture <- new.env(parent = baseenv())
   fixture$inherited <- inherited
+  fixture$inherited_commands <- inherited_commands
   fixture$seen <- character()
+  fixture$commands_seen <- character()
   probe <- c(
     'testthat::test_that("suite setup outlives each sourced file", {',
     '  current <- Sys.getenv("PRISMREPL_CONFIG_FILE")',
@@ -29,6 +35,11 @@ check_settings_isolation <- function(root = ".") {
     '  testthat::expect_false(file.exists(current))',
     '  testthat::expect_true(dir.exists(dirname(current)))',
     '  fixture$seen <- c(fixture$seen, current)',
+    '  commands <- Sys.getenv("PRISMREPL_COMMANDS_FILE")',
+    '  testthat::expect_false(identical(commands, fixture$inherited_commands))',
+    '  testthat::expect_false(file.exists(commands))',
+    '  testthat::expect_identical(dirname(commands), dirname(current))',
+    '  fixture$commands_seen <- c(fixture$commands_seen, commands)',
     '})'
   )
   invisible(lapply(c("first", "second"), function(name)
@@ -42,13 +53,19 @@ check_settings_isolation <- function(root = ".") {
     nrow(totals) == 2L && sum(totals$failed) == 0L && !any(totals$error),
     "the same isolated path must remain active across files" =
       length(fixture$seen) == 2L && length(unique(fixture$seen)) == 1L,
+    "the same isolated command path must remain active across files" =
+      length(fixture$commands_seen) == 2L && length(unique(fixture$commands_seen)) == 1L,
     "the inherited environment must be restored after the suite" =
       identical(Sys.getenv("PRISMREPL_CONFIG_FILE"), inherited),
+    "the inherited command environment must be restored after the suite" =
+      identical(Sys.getenv("PRISMREPL_COMMANDS_FILE"), inherited_commands),
     "the original preferences must remain byte-identical" =
       identical(original, readBin(inherited, "raw", n = file.info(inherited)$size)),
+    "the original command registry must remain byte-identical" =
+      identical(original_commands, readBin(inherited_commands, "raw", n = file.info(inherited_commands)$size)),
     "the isolated directory must be cleaned up after the suite" =
       !dir.exists(dirname(fixture$seen[[1L]])))
-  cat("PASS: two files, suite lifetime, environment restoration, unchanged preferences and cleanup.\n")
+  cat("PASS: two files, suite lifetime, environment restoration, unchanged preferences and custom commands, cleanup.\n")
   invisible(TRUE)
 }
 

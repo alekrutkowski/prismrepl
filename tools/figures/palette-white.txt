@@ -4,6 +4,7 @@
   [Discover]                                                                                                                       
   :help [TEXT]  (:h)              Search commands and descriptions; choose one to place it in the input for approval.              
   :keys  (:k)                     Browse shortcuts; Enter places the selected :bind command in the input.                          
+  :commands [TEXT]  (:co)         Browse your saved custom R-function commands; choose one to place it in the input.               
   :doc TOPIC [PACKAGE]  (:d)      Read styled function documentation; also ?mean or ?stats::lm.                                    
   :docs PACKAGE  (:ds)            Browse an installed package's documentation index.                                               
   [Workspace]                                                                                                                      
@@ -31,6 +32,5 @@
   :recall NUMBER  (:re)           Place a numbered history entry in the input for editing and approval.                            
   :trace  (:tr)                   Show the most recent error's captured call trace.                                                
   :explain [copy] [minimal]       Show an AI explanation link, or copy its prompt; minimal omits source and call trace.            
-  (:e)                                                                                                                             
- 39/39 commands. Selection fills the input; review arguments and press Enter there to run.                                         
+ 40/40 commands. Selection fills the input; review arguments and press Enter there to run.                                         
  Enter stage command  Up/Down move  Tab sort  Ctrl+U clear  Escape cancel                                                          

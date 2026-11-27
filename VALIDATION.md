@@ -1,207 +1,153 @@
-# Validation of prismrepl 0.6.4
+# Validation of prismrepl 0.6.5
 
-Validation date: 25 November 2026. The package supports R >= 4.5.0.
-No CRAN submission or GitHub publication was performed.
+Validated on 27 November 2026. The results below apply to the exact delivered
+source archive. The GitHub ZIP includes the source, current README, release
+instructions, workflows, developer tools and the evidence referenced here.
 
 ## Exact source archive
 
-- File: `prismrepl_0.6.4.tar.gz`.
-- Built with R 4.6.2 using `R CMD build`.
-- Archived `Packaged`: `2026-11-25 15:29:23 UTC; agent`.
-- Source gate: 124 files, required metadata and package structure present,
-  repository-only files excluded.
-- SHA-256: `6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed`.
+- File: `prismrepl_0.6.5.tar.gz`.
+- Built with `R CMD build` using R 4.6.2.
+- Build timestamp: `2026-11-27 10:33:02 UTC`.
+- Source files: 131, with no compiled objects or repository-only files.
+- SHA-256: `f25b8b9773dbd9633ba4392a24c9f4cd31fde151bbf6cc97ae7c1e9e5db4635c`.
 
-[Build log](tools/validation/R-CMD-build.log) and
-[source-archive verification](tools/validation/source-archive.log).
-The complete checks below used these exact bytes. The GitHub ZIP contains the
-corresponding source, workflows, figures, developer tools and evidence.
-Developer tools, validation records and submission comments are excluded from
-the CRAN source archive by `.Rbuildignore`.
+The [build log](tools/validation/R-CMD-build.log) and
+[source archive gate](tools/validation/source-archive.log) identify this file.
+All 130 source files other than DESCRIPTION match the development source byte
+for byte. R adds build metadata to DESCRIPTION. The archive remains unchanged
+after checking; repository-only documentation and evidence are excluded by
+`.Rbuildignore`.
 
-## Complete package checks
+## Complete final-archive checks
 
-Both recorded checks ran on Debian GNU/Linux 13, x86-64, with rlang 1.3.0.
-The R 4.5.0 check used the supplied audited UTC driver. The R 4.6.2 check used
-ordinary `R CMD check --as-cran` with a private R installation whose compiler
-defaults reproduce Ubuntu's inherited leaf-frame flag. These configurations
-are described below.
+Both runs used Linux x86-64, Debian 13, and rlang 1.3.0. Both included examples,
+compiled-code checks, the full test suite, PDF generation and HTML validation.
+The manual used `R_RD4PDF=times,hyper`, with PDF checking enabled.
 
-| Result                       | R 4.5.0, audited UTC | R 4.6.2, inherited flag |
-| ---------------------------- | -------------------- | ----------------------- |
-| Errors                       | 0                    | 0                       |
-| Warnings                     | 0                    | 0                       |
-| NOTEs                        | 1                    | 1                       |
-| Remaining NOTE               | New submission       | New submission          |
-| Passed test assertions       | 3,263                | 3,263                   |
-| Test failures/warnings/skips | 0 / 0 / 0            | 0 / 0 / 0               |
-| Compilation flags            | OK                   | OK                      |
-| Future file timestamps       | OK                   | OK                      |
-| PDF and HTML manuals         | OK                   | OK                      |
-| Checker exit status          | 0                    | 0                       |
-| Source archive unchanged     | Yes                  | Yes                     |
+| Result                       | R 4.5.0, audited clock | R 4.6.2, ordinary check |
+| ---------------------------- | ---------------------- | ----------------------- |
+| Errors                       | 0                      | 0                       |
+| Warnings                     | 0                      | 0                       |
+| NOTEs                        | 1: New submission      | 1: New submission       |
+| Passed test assertions       | 3,610                  | 3,610                   |
+| Test warnings or failures    | 0                      | 0                       |
+| Skipped tests                | 0                      | 0                       |
+| Future file timestamps       | OK                     | OK                      |
+| Compilation flags            | OK                     | OK                      |
+| Examples                     | OK                     | OK                      |
+| PDF manual                   | OK                     | OK                      |
+| HTML manual                  | OK                     | OK                      |
+| Check directory and detritus | OK                     | OK                      |
 
-Evidence for [R 4.5.0](tools/validation/R-4.5.0-audited/prismrepl.Rcheck/00check.log):
-[audit](tools/validation/R-4.5.0-audited/preflight.txt),
-[installation](tools/validation/R-4.5.0-audited/prismrepl.Rcheck/00install.out),
-[tests](tools/validation/R-4.5.0-audited/prismrepl.Rcheck/tests/testthat.Rout).
-Evidence for [R 4.6.2](tools/validation/R-4.6.2-inherited/prismrepl.Rcheck/00check.log):
-[build configuration](tools/validation/R-4.6.2-inherited/inherited-build.txt),
-[installation](tools/validation/R-4.6.2-inherited/prismrepl.Rcheck/00install.out),
-[tests](tools/validation/R-4.6.2-inherited/prismrepl.Rcheck/tests/testthat.Rout).
+Evidence:
 
-The compiler was Debian GCC 14.2.0. Documentation used standard Times fonts
-through `R_RD4PDF=times,hyper`, LaTeX, texinfo, HTML Tidy and qpdf. Manual checks
-were enabled. Native Windows, WSL2, macOS, ARM64 and R-devel execution is not
-claimed. Their configured GitHub jobs are not represented as completed checks.
+- R 4.5.0: [00check.log](tools/validation/R-4.5.0-audited/00check.log),
+  [test results](tools/validation/R-4.5.0-audited/testthat.Rout),
+  [compilation](tools/validation/R-4.5.0-audited/00install.out),
+  [clock and environment audit](tools/validation/R-4.5.0-audited/preflight.txt).
+- R 4.6.2: [00check.log](tools/validation/R-4.6.2-ordinary/00check.log),
+  [test results](tools/validation/R-4.6.2-ordinary/testthat.Rout),
+  [compilation](tools/validation/R-4.6.2-ordinary/00install.out).
 
-An additional [ordinary R 4.5.0 check](tools/validation/R-4.5.0-ordinary/prismrepl.Rcheck/00check.log)
-passed all 3,263 assertions and both manuals, with zero errors and warnings.
-It retained two NOTEs: New submission and `unable to verify current time`.
-The package-test fix therefore also passes without the optional UTC driver;
-the older external-time lookup remains a separate environment limitation.
+The NOTE contains the maintainer identity and `New submission`. These local
+checks do not constitute a CRAN acceptance decision.
 
-## R 4.5 binding inspection
+### Clock and compiler settings
 
-The fallback distinguishes directly missing bindings from forced promises
-whose cached value is R's missing-argument sentinel. A reproduction with 300
-different global binding-name patterns exposed the environment-cloning problem
-under rlang 1.3.0. The correction passed all patterns under both rlang 1.1.5
-and 1.3.0.
-
-Exported, vectorized rlang helpers identify delayed bindings. Active and
-unforced bindings are excluded before values are read. For rare cached
-missing-value candidates, the supported `R_getVar()` and `R_tryCatchError()`
-APIs distinguish the cases without cloning an environment. Unrelated errors
-are rethrown. The R >= 4.6 `R_GetBindingType()` path is unchanged. No
-undocumented C API or object-payload copying was introduced.
-
-The focused native tests passed 71 assertions in each combination:
-
-| R version | rlang version | Failures | Warnings | Skips |
-| --------- | ------------- | -------- | -------- | ----- |
-| 4.5.0     | 1.1.5         | 0        | 0        | 0     |
-| 4.5.0     | 1.3.0         | 0        | 0        | 0     |
-| 4.6.2     | 1.3.0         | 0        | 0        | 0     |
-
-The new assertions fail against the unfixed implementation with rlang 1.3.0.
-They also pass in both complete final-archive checks. See the
-[native regression evidence](tools/validation/binding).
-
-The final archive was installed into an isolated R 4.5.0 library with rlang
-1.3.0. A real pseudo-terminal explorer test passed special-binding protection,
-nested exploration, atomic leaves, filtering, Unicode, resizing and terminal
-restoration. Its [log](tools/validation/terminal/pty-explorer-R4.5.0.log) is
-included. Renderer-produced figures were refreshed, including the batch
-attachment entry in the command palette.
-
-## Ordinary checks with the Ubuntu compiler flag
-
-The standalone `prismrepl-fix-check-flags.R` is assembled from
-[check-profile.R](tools/check-profile.R) and
-[fix-check-flags.R](tools/fix-check-flags.R). It verifies the selected R build's
-compiler defaults with user and site Makevars disabled. Only an inherited
-`-mno-omit-leaf-frame-pointer` is added to the selected persistent check
-environment's `_R_CHECK_COMPILATION_FLAGS_KNOWN_` setting. Compilation-flag
-checking stays enabled. R documents this use in
-[R Internals, Tools](https://cran.r-project.org/doc/manuals/r-release/R-ints.html#Tools).
-
-The tool preserves the effective profile and existing known flags, writes a
-backup, verifies the result in a fresh matching R process, and supports
-inspection and reversal of its unchanged block. It changes no compiler
-commands, Makevars, source timestamps, clock settings or installed R files.
-Package installation and loading never invoke it. Rerun the tool when changing
-R builds because a user profile can be shared by several installations.
-
-For the final full-package check, the interpreter and libR were byte-identical
-copies of installed R 4.6.2. Only the private launcher's path and private
-Makeconf's default C flag variables were adjusted. The leaf-frame flag was
-added to those defaults to reproduce Ubuntu's inherited setting. The explicit
-repair was applied to a private profile selected through `R_CHECK_ENVIRON`.
-No live R installation or actual user profile was changed.
-
-The subsequent command was ordinary `R CMD check --as-cran`. The selected
-profile contained only the verified inherited-flag setting and
-`_R_CHECK_COMPILATION_FLAGS_=TRUE`. There was no custom driver or clock,
-timestamp or incoming-check suppression. The flag remained in all five C
-compilation commands; the compilation-flags section reported `OK`.
-
-A small compiled fixture separately checked diagnostic preservation:
-
-| Fixture case                                           | Observed ordinary check result                     |
-| ------------------------------------------------------ | -------------------------------------------------- |
-| Inherited leaf-frame plus package-added `-Wconversion` | Both flags reported before repair                  |
-| Same source and compiler commands after repair         | `-Wconversion` and its Makevars WARNING retained   |
-| Inherited leaf-frame only, after repair                | Compilation flags `OK`; overall `Status: OK`       |
-
-Before/after compiler commands were byte-identical. Remote incoming feasibility
-was disabled for this deliberately unsubmitted fixture only. Compiler, clock,
-file timestamp and manual checks remained enabled.
-[Fixture evidence](tools/validation/compiler-flags/native-summary.txt) and
-check/installation logs are included. The helper's offline regression tests
-passed on R 4.5.0 and R 4.6.2 and are included in the GitHub check workflow.
-
-## Audited R 4.5 clock verification
-
-The optional `prismrepl-check.R` is assembled from
-[check-clock.R](tools/check-clock.R), [check-profile.R](tools/check-profile.R)
-and [check-package.R](tools/check-package.R). It runs the complete check after
-independent UTC verification and does not persist its settings.
-
-For the recorded R 4.5.0 run, fresh certificate-verified HTTPS responses from
-CRAN, Google and Cloudflare agreed with the local clock. The verifier requires
-two independent agreeing sources, rejects stale or inconsistent responses,
-and detects wall-clock jumps using an elapsed clock. Only after verification
-does the private child profile apply:
+The R 4.6.2 run was an ordinary `R CMD check --as-cran`, without the custom
+check driver or a clock override. The R 4.5.0 run used
+[tools/check-package.R](tools/check-package.R). It first verified current UTC
+against fresh, certificate-verified HTTPS responses from CRAN, Google and
+Cloudflare. It then set the following values in a temporary child check profile:
 
 ```text
+_R_CHECK_COMPILATION_FLAGS_=TRUE
 _R_CHECK_SYSTEM_CLOCK_=FALSE
 _R_CHECK_FUTURE_FILE_TIMESTAMPS_=TRUE
 _R_CHECK_FUTURE_FILE_TIMESTAMPS_LEEWAY_=5m
-_R_CHECK_COMPILATION_FLAGS_=TRUE
 ```
 
-R's duplicate remote-time lookup is replaced by the recorded preflight. The
-actual future-file timestamp check remains enabled. The driver preserves the
-effective original profile, verifies child settings in a matching R process,
-checks the source hash before and after, and removes its private profile on
-exit. That R 4.5 build lacked the leaf-frame flag, so no additional known flag
-was introduced.
+This replaces R 4.5.0's external-clock lookup for that check only. The actual
+future-file comparison and compilation-flag checking remain enabled. The audit
+records the accepted time observations, effective settings, source checksum and
+exit status. No source timestamps, compiler flags, installed R files or user
+profiles were changed by this run.
 
-These are disclosed local settings. A later ordinary check still uses R's
-own remote-time lookup. CRAN uses its own builds and configuration. Neither
-tool changes the submitted package or guarantees CRAN acceptance.
+Neither R build used here supplies `-mno-omit-leaf-frame-pointer`; consequently
+no flag was added to the checker's known-flags list. The explicit Ubuntu/WSL
+setup tool remains included in [tools/fix-check-flags.R](tools/fix-check-flags.R).
+Its use and the distinction between local checker configuration and package
+code are documented in [RELEASE.md](RELEASE.md). Installing this package does
+not apply that setup or modify CRAN's checking environment.
 
-## Batch package commands
+## Custom-command coverage
 
-`:attach` and `:a` accept multiple package names. Literal namespaced
-`base::library()` calls run in the supplied order, with repeated names removed.
-A loading error stops the sequence; earlier successful attachments remain.
-Single-package calls, invisible returns and `.Last.value` semantics are
-preserved. No package is installed automatically.
+The final full suite includes 347 assertions specific to custom commands:
 
-The existing multi-package `:detach` and `:de` retain confirmation, core-package
-protection and per-package results. Namespaces remain loaded. There is no
-`:detatch` command or alias. Tab completion works at each package argument,
-and complete commands remain in history.
+| Area                        | Assertions | Coverage                                                                                    |
+| --------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| String argument parser      | 157        | Zero, one, multiple and variadic arguments; grouping; empty strings; Unicode; literal paths |
+| Registration and storage    | 102        | Names, aliases, collisions, serialization, closure state, locks, failed writes and recovery |
+| Console integration         | 88         | Dispatch, conditions, visibility, completion, palettes, restart and directory stability     |
 
-Fresh R 4.5.0 and R 4.6.2 installations each passed 175 focused assertions
-across batch, argument and palette tests, including 58 dedicated batch
-assertions. Tests cover literal-safe arguments, masked function names, order,
-deduplication, failures, completion and history. These also pass in the
-complete final-archive checks. [Focused logs](tools/validation/batch-packages)
-are included.
+These assertions verify that a one-formal function receives the complete
+remaining text with internal spaces preserved. Multiple-formal and variadic
+functions receive literal character scalars split on whitespace, with quoted
+strings preserving internal spaces. Numeric-looking values, `NA`, `$HOME` and
+R-looking text remain strings. Backslashes remain literal, including quoted
+Windows directory paths ending in a backslash.
 
-## Static diagnostics and release boundaries
+Fresh matching R subprocesses verify that a serialized closure retains its
+captured local values while references to `.GlobalEnv` use the new session's
+workspace. Listing and completion inspect metadata without restoring function
+bodies. Tests also cover explicit replacement/removal, separate registries,
+session-only definitions, malformed storage, unavailable writer locks and
+retention of the previous file after failed saves.
 
-The supplied checktor report was reviewed against the source. Remaining
-output, package-management and directory-change findings describe intentional
-interactive commands or captured previews. Git and clipboard subprocess calls
-are bounded and use quoted arguments or stdin. NEWS is optional and remains
-omitted. The [assessment](tools/validation/checktor-assessment.md) explains
-each category without presenting the heuristic scanner as a CRAN gate.
+Console tests verify normal visible/invisible results, `.Last.value`, multiline
+message/warning/error blocks and the submitted colon text in diagnostic context.
+The external-command path restores the terminal and screen after success,
+error or interruption. A relative registry path is fixed when creating the
+configuration; changing directory through `:cd` does not silently select a
+different registry.
 
-The GitHub bundle retains OS/architecture checks, R 4.5.0 jobs and binary
-release workflows. The CRAN archive contains source, manual pages, the
-installed guide and tests, without compiled binaries, developer logs, release
-ZIPs or local check helpers. Only the built tarball is intended for CRAN upload.
+## Live terminal verification
+
+[tools/pty-custom-commands.py](tools/pty-custom-commands.py) ran against the
+installed package from the final R 4.5.0 archive check. Its
+[log](tools/validation/pty-custom-commands-R4.5.0.log) records a passing run.
+The test uses two separate R processes and a real Linux pseudo-terminal.
+It verifies saved definitions, captured values, aliases, Tab completion,
+zero/one/multiple/variadic arguments, Unicode, quoted and empty strings,
+description-based palette search, staging before final Enter, condition blocks,
+error recovery and colon-command history. It also checks that the alternate
+screen does not scroll and that terminal modes are restored exactly.
+
+Both GitHub workflows run this test in their POSIX terminal-test step.
+Windows console tests remain configured separately.
+
+## Isolation, documentation and scope
+
+The full test harness redirects both `PRISMREPL_CONFIG_FILE` and
+`PRISMREPL_COMMANDS_FILE` to temporary locations, then restores inherited
+settings. The [isolation probe](tools/validation/settings-isolation.log)
+checks that the original sentinel files remain unchanged. Package loading
+creates no custom registry and executes no custom function. Registration and
+removal are explicit user operations; examples use temporary paths.
+
+Roxygen documentation is generated for the new public functions and updated
+configuration/completion arguments. The README and installed guide contain the
+same custom-command tutorial. Reproducible renderer captures identify version
+0.6.5; see [tools/figures](tools/figures). The release introduces no additional
+runtime dependencies, and the native C sources are unchanged.
+
+The public base snapshot used for this work is commit
+`d82c2c712f8454143da298d0cc7896cdcba43037` of
+[alekrutkowski/prismrepl](https://github.com/alekrutkowski/prismrepl).
+
+Execution reported here was Linux x86-64. Native Windows, WSL2, macOS, ARM64
+and R-devel runs are not claimed. The supplied GitHub workflows retain checks
+and release builds for their configured platforms, including the R 4.5.0
+Windows compatibility job. They must run in GitHub before their results can be
+reported. The GitHub ZIP is a source checkout, not a precompiled Windows binary.

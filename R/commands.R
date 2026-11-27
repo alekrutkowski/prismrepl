@@ -1,10 +1,11 @@
 #' Describe Console Commands from One Shared Registry
 #' @return Command identifiers, syntax, aliases, groups, descriptions and staged text.
 #' @noRd
-.command_catalog <- function() {
+.builtin_command_catalog <- function() {
   rows <- list(
     c("help", ":help [TEXT]", "h", "Discover", "Search commands and descriptions; choose one to place it in the input for approval.", ":help "),
     c("keys", ":keys", "k", "Discover", "Browse shortcuts; Enter places the selected :bind command in the input.", ":keys"),
+    c("commands", ":commands [TEXT]", "co", "Discover", "Browse your saved custom R-function commands; choose one to place it in the input.", ":commands "),
     c("doc", ":doc TOPIC [PACKAGE]", "d", "Discover", "Read styled function documentation; also ?mean or ?stats::lm.", ":doc "),
     c("docs", ":docs PACKAGE", "ds", "Discover", "Browse an installed package's documentation index.", ":docs "),
     c("objects", ":objects [TEXT]", "o", "Workspace", "Explore workspace bindings, optionally filtering their names.", ":objects "),
@@ -54,24 +55,42 @@
   out
 }
 
+#' Combine Built-In and User-Defined Command Metadata
+#' @param commands_file Custom registry path, or NULL for session-only commands.
+#' @return The shared command reference, without loading user functions.
+#' @noRd
+.command_catalog <- function(commands_file = repl_commands_file()) {
+  stopifnot("commands_file must be NULL or a nonempty path" =
+              is.null(commands_file) || .is_text(commands_file))
+  out <- rbind(.builtin_command_catalog(), .custom_command_catalog(commands_file))
+  rownames(out) <- NULL
+  stopifnot("combined command names must be unique" = !anyDuplicated(out$id),
+            "combined command records must be complete" = !anyNA(out) &&
+              all(startsWith(out$insert, ":")))
+  out
+}
+
 #' Parse a Console Command Without Interpreting Path Escapes
 #' @param text One command string.
+#' @param commands_file Custom registry path, or NULL for session-only commands.
 #' @return The canonical identifier, argument tokens and literal remainder.
 #' @noRd
-.command_parse <- function(text) {
+.command_parse <- function(text, commands_file = repl_commands_file()) {
   stopifnot("text must be a nonempty command" = .is_text(text))
-  match <- regexec("^[[:blank:]]*:([[:alpha:]][[:alnum:]]*)(?:[[:blank:]]+([\\s\\S]*))?$", text, perl = TRUE)
+  match <- regexec("^[[:blank:]]*:([[:alpha:]][[:alnum:]_-]*)(?:[[:blank:]]+([\\s\\S]*))?$", text, perl = TRUE)
   parts <- regmatches(text, match)[[1L]]
   stopifnot("use a colon followed by a command name" = length(parts) >= 2L)
   name <- tolower(parts[[2L]])
-  registry <- .command_catalog()
+  registry <- .builtin_command_catalog()
   index <- match(name, registry$id)
   if (is.na(index)) index <- match(name, registry$alias)
-  cmd <- if (is.na(index)) name else registry$id[[index]]
+  custom <- if (is.na(index)) .custom_command_lookup(name, commands_file) else NULL
+  cmd <- if (!is.null(custom)) custom$name else if (is.na(index)) name else registry$id[[index]]
   raw <- if (length(parts) >= 3L) parts[[3L]] else ""
   if (cmd != "shell") raw <- trimws(raw)
   path_command <- cmd %in% c("source", "cd", "files")
-  args <- if (!nzchar(raw)) character() else if (cmd == "shell") raw else if (path_command) .command_path(raw) else
+  args <- if (!is.null(custom)) .custom_command_arguments(raw, custom$parameters) else
+    if (!nzchar(raw)) character() else if (cmd == "shell") raw else if (path_command) .command_path(raw) else
     scan(text = raw, what = character(), quiet = TRUE, quote = "\"'`", comment.char = "", allowEscapes = FALSE)
   out <- list(command = cmd, args = args, raw = raw)
   stopifnot("parsed command must contain literal arguments" = .is_text(out$command) &&
@@ -117,21 +136,26 @@
 #'   processes run, then return to the full-screen interface.
 #' @param operation Package operation or shell command; shell commands report
 #'   their exit status and pause before returning to the full-screen interface.
+#'   Custom commands preserve the supplied closure and use the ordinary result
+#'   pipeline. An external custom command pauses before returning as well.
+#' @param source Optional display text, such as the submitted custom command.
 #' @return The evaluation result invisibly.
 #' @noRd
-.command_evaluate <- function(call, state, envir, external = FALSE, operation = "package") {
+.command_evaluate <- function(call, state, envir, external = FALSE, operation = "package", source = NULL) {
   stopifnot("command must be an R call" = is.call(call),
             "state and evaluation environment must be environments" = is.environment(state) && is.environment(envir),
             "external must be logical" = .is_flag(external),
-            "operation must be package or shell" = .is_text(operation) && operation %in% c("package", "shell"))
-  code <- paste(deparse(call, width.cutoff = 100L), collapse = "\n")
+            "operation must be package, shell, or custom" = .is_text(operation) &&
+              operation %in% c("package", "shell", "custom"),
+            "source must be NULL or scalar text" = is.null(source) || .is_text(source))
+  code <- if (is.null(source)) paste(deparse(call, width.cutoff = 100L), collapse = "\n") else source
   config <- state$config
   result <- report <- NULL
   suspended <- external && is.environment(config$screen) && isTRUE(config$screen$active)
   if (suspended) {
     screen_leave(config$screen)
     on.exit({
-      if (operation == "shell" && is.list(result)) {
+      if (operation %in% c("shell", "custom") && is.list(result)) {
         state$config$screen$mode <- if (isTRUE(result$interrupted)) "INTERRUPTED" else
           if (!is.null(result$error) || identical(report$role, "error")) "ERROR" else
             if (length(result$warnings)) "WARNING" else "READY"
@@ -143,13 +167,19 @@
         .emit(report$text, report$role, state$config) else if (operation == "package")
           .emit("Package operation returned. Its full output is in the terminal scrollback.",
             if (length(result$warnings)) "warning" else "message", state$config)
+      else if (operation == "custom")
+        .emit("Custom command returned. Its output is in the terminal scrollback.",
+          if (length(result$warnings)) "warning" else "message", state$config)
     }, add = TRUE)
     config$screen <- NULL
     config$output_hook <- NULL
     .emit(if (operation == "shell") "Running the shell command in the ordinary terminal." else
+      if (operation == "custom") "Running the custom command in the ordinary terminal." else
       "Running the package installer; the full-screen console resumes when it returns.", "message", config)
   }
-  result <- .evaluate_session(code, envir, config)
+  result <- if (operation == "custom")
+    .evaluate_session(code, envir, config, expressions = as.expression(list(call))) else
+      .evaluate_session(code, envir, config)
   state$last <- result
   if (!is.null(state$last$error)) state$last_error <- state$last
   if (operation == "shell") {
@@ -158,6 +188,8 @@
     if (suspended && !isTRUE(result$interrupted))
       tryCatch(.shell_pause(), interrupt = function(e) invisible(NULL))
   }
+  if (operation == "custom" && suspended && !isTRUE(result$interrupted))
+    tryCatch(.shell_pause(), interrupt = function(e) invisible(NULL))
   stopifnot("command evaluation must have a result" = is.list(state$last) && "error" %in% names(state$last))
   invisible(state$last)
 }

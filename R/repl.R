@@ -61,7 +61,7 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
     .remember_initial_theme(cfg)
     state$config$theme_initial <- FALSE
   }
-  .emit(c("prismrepl 0.6.4", ":help commands  :keys shortcuts  :quit return to R"), "heading", cfg)
+  .emit(c("prismrepl 0.6.5", ":help commands  :keys shortcuts  :quit return to R"), "heading", cfg)
   if (!native) .emit("Basic console mode. Editing is provided by the host R console.", "muted", cfg)
   repeat {
     if (!state$running) break
@@ -245,15 +245,16 @@ repl <- function(envir = .GlobalEnv, config = repl_config(), mode = "auto") {
 
 #' Console Command Reference
 #' @param details Include aliases, groups, identifiers and staged command text.
+#' @param commands_file Custom registry path, or NULL for session-only commands.
 #' @return A data frame of commands and descriptions. With `details = TRUE`,
 #'   returns the complete command registry used by the palette and completion.
 #' @export
 #' @examples
 #' repl_commands()
 #' repl_commands(details = TRUE)
-repl_commands <- function(details = FALSE) {
+repl_commands <- function(details = FALSE, commands_file = repl_commands_file()) {
   stopifnot("details must be logical" = .is_flag(details))
-  catalog <- .command_catalog()
+  catalog <- .command_catalog(commands_file)
   out <- if (details) catalog else catalog[c("command", "description")]
   stopifnot("command reference must contain matching descriptions" = is.data.frame(out) &&
               nrow(out) > 0L && !anyNA(out$description))
@@ -282,7 +283,7 @@ repl_commands <- function(details = FALSE) {
 .repl_command <- function(text, state, envir) {
   stopifnot("text must be one command" = .is_text(text),
             "state and envir must be environments" = is.environment(state) && is.environment(envir))
-  parsed <- .command_parse(text)
+  parsed <- .command_parse(text, state$config$commands_file)
   cmd <- parsed$command
   args <- parsed$args
   cfg <- state$config
@@ -294,6 +295,15 @@ repl_commands <- function(details = FALSE) {
       if (.is_text(staged)) state$initial <- staged
     },
     keys = .binding_menu(state, title = "Keyboard shortcuts"),
+    commands = {
+      catalog <- .custom_command_catalog(cfg$commands_file)
+      if (!nrow(catalog)) .emit(c("No custom commands registered for this configuration.",
+        "Add one with prismrepl::repl_add_command(\"name\", function(text) ...)."), "message", cfg)
+      else {
+        staged <- .command_palette(cfg, query = paste(args, collapse = " "), catalog = catalog)
+        if (.is_text(staged)) state$initial <- staged
+      }
+    },
     doc = {
       stopifnot("use :doc TOPIC [PACKAGE]" = length(args) %in% 1:2)
       view_help(args[1L], if (length(args) == 2L) args[2L] else NULL, cfg)
@@ -457,7 +467,13 @@ repl_commands <- function(details = FALSE) {
       state$config$sidebar <- identical(args[1L], "on")
     },
     quit = { state$running <- FALSE },
-    stop("Unknown command. Use :help.", call. = FALSE))
+    {
+      definition <- .custom_command_lookup(cmd, cfg$commands_file, load = TRUE)
+      if (is.null(definition)) stop("Unknown command. Use :help.", call. = FALSE)
+      call <- as.call(c(list(definition$fun), unname(as.list(args))))
+      .command_evaluate(call, state, envir, external = definition$external,
+        operation = "custom", source = text)
+    })
   invisible(NULL)
 }
 

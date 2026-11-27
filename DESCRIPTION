@@ -1,6 +1,6 @@
 Package: prismrepl
 Title: Snappy and Rich Terminal Console
-Version: 0.6.4
+Version: 0.6.5
 Authors@R: person("Alek", "Rutkowski", email = "alek.rutkowski@gmail.com",
     role = c("aut", "cre", "cph"))
 Description: Provides an opt-in interactive console with multiline editing,
@@ -9,7 +9,8 @@ Description: Provides an opt-in interactive console with multiline editing,
     terminal layer supports Linux and macOS terminals and the Windows console.
     A responsive full-screen interface combines a transcript, editor, and workspace sidebar,
     with buffered rendering, mouse navigation, persistent preferences,
-    structural object exploration, a searchable command palette, file browsing,
+    structural object exploration, persistent user-defined commands,
+    a searchable command palette, file browsing,
     function editing, clipboard support, styled documentation, labeled conditions,
     matching delimiter colors, automatic pairing and configurable browser links
     for error explanations. Initial themes follow detected desktop appearance. Plain

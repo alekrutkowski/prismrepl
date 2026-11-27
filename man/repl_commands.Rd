@@ -4,10 +4,12 @@
 \alias{repl_commands}
 \title{Console Command Reference}
 \usage{
-repl_commands(details = FALSE)
+repl_commands(details = FALSE, commands_file = repl_commands_file())
 }
 \arguments{
 \item{details}{Include aliases, groups, identifiers and staged command text.}
+
+\item{commands_file}{Custom registry path, or NULL for session-only commands.}
 }
 \value{
 A data frame of commands and descriptions. With \code{details = TRUE},

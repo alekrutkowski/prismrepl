@@ -22,7 +22,7 @@ test_check_package <- function() {
       mutate_archive = FALSE, omit_log = FALSE, existing_output = FALSE) {
     folder <- file.path(directory, name)
     stopifnot("case directory must be created" = dir.create(folder))
-    archive <- file.path(folder, "prismrepl_0.6.2.tar.gz")
+    archive <- file.path(folder, "prismrepl_0.6.5.tar.gz")
     writeBin(charToRaw("private source archive fixture\n"), archive)
     sha256 <- unname(tools::sha256sum(archive))
     output <- file.path(folder, "results with spaces")

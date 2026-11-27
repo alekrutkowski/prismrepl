@@ -62,6 +62,12 @@
 #'   [repl_ai_providers()]. Defaults to `"mistral"`. No API key is needed.
 #' @param ai_url Optional HTTPS template containing exactly one `{prompt}` for
 #'   `ai_provider = "custom"`. The placeholder receives URL-encoded UTF-8 text.
+#' @param commands_file Persistent custom-command registry. By default it is
+#'   [repl_commands_file()] beside the selected preferences file. `NULL` uses
+#'   only commands explicitly registered for this R session with `file = NULL`.
+#'   A temporary `settings_file = NULL` also defaults to session-only commands.
+#'   Relative paths are resolved when this configuration is created, so changing
+#'   the working directory keeps the selected registry.
 #' @return A validated `prismrepl_config` list.
 #' @export
 #' @examples
@@ -77,8 +83,10 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
                         color_depth = NULL, settings_file = repl_settings_file(),
                         persist = TRUE, keybindings = NULL, mouse = TRUE,
                         synchronize = FALSE, rainbow = TRUE, autopair = TRUE,
-                        ai_provider = "mistral", ai_url = NULL, match_pairs = TRUE) {
+                        ai_provider = "mistral", ai_url = NULL, match_pairs = TRUE,
+                        commands_file = repl_commands_file(settings_file)) {
   stopifnot("settings_file must be NULL or a nonempty path" = is.null(settings_file) || .is_text(settings_file),
+            "commands_file must be NULL or a nonempty path" = is.null(commands_file) || .is_text(commands_file),
             "persist must be logical" = .is_flag(persist),
             "mouse must be logical" = .is_flag(mouse),
             "synchronize must be logical" = .is_flag(synchronize))
@@ -148,6 +156,7 @@ repl_config <- function(theme = "auto", pipe = "|>", color = NULL,
     color_auto = color_auto, color_depth_auto = color_depth_auto,
     color_depth_requested = color_depth_requested,
     settings_file = if (is.null(settings_file)) NULL else path.expand(settings_file),
+    commands_file = if (is.null(commands_file)) NULL else .custom_command_key(commands_file),
     persist = persist, keybindings = keybindings, key_lookup = .key_lookup(keybindings),
     mouse = mouse, synchronize = synchronize, rainbow = rainbow, autopair = autopair,
     match_pairs = match_pairs,

@@ -31,6 +31,9 @@ keymap <- function(config = repl_config()) {
 #' @param cursor Cursor position as a zero-based Unicode code-point offset.
 #' @param envir Environment used to find visible names.
 #' @param limit Maximum number of candidates.
+#' @param commands_file Custom registry path used for colon-command completion,
+#'   or NULL for session-only custom commands. Functions are not invoked or
+#'   deserialized for name completion.
 #' @return A list containing `start` and `end`, the zero-based code-point offsets
 #'   delimiting the replacement span, and a character vector `candidates`.
 #' @export
@@ -38,18 +41,19 @@ keymap <- function(config = repl_config()) {
 #' complete_r("mea")
 #' complete_r("stats::rno")
 complete_r <- function(text, cursor = nchar(text, type = "chars"),
-                       envir = .GlobalEnv, limit = 200L) {
+                       envir = .GlobalEnv, limit = 200L, commands_file = repl_commands_file()) {
   stopifnot("text must be one valid string" = is.character(text) && length(text) == 1L &&
               !is.na(text) && isTRUE(utf8::utf8_valid(text)),
             "cursor must be a valid code-point offset" = is.numeric(cursor) &&
               length(cursor) == 1L && !is.na(cursor) && is.finite(cursor) &&
               cursor >= 0 && cursor <= nchar(text, type = "chars") && cursor == as.integer(cursor),
             "envir must be an environment" = is.environment(envir),
+            "commands_file must be NULL or a nonempty path" = is.null(commands_file) || .is_text(commands_file),
             "limit must be a positive integer" = is.numeric(limit) && length(limit) == 1L &&
               !is.na(limit) && is.finite(limit) && limit >= 1 && limit <= 10000 &&
               limit == as.integer(limit))
   before <- substr(text, 1L, cursor)
-  command <- .complete_command(text, cursor, envir, limit)
+  command <- .complete_command(text, cursor, envir, limit, commands_file)
   if (!is.null(command)) return(command)
   quoted <- .completion_quote(before)
   if (!is.null(quoted) && quoted$quote %in% c("'", '"')) {
@@ -445,7 +449,8 @@ complete_r <- function(text, cursor = nchar(text, type = "chars"),
   if (is.null(state$completion)) {
     text <- paste0(state$chars, collapse = "")
     cursor <- nchar(paste0(utils::head(state$chars, state$cursor), collapse = ""), type = "chars")
-    matched <- complete_r(text, cursor, envir)
+    matched <- if (is.null(config)) complete_r(text, cursor, envir) else
+      complete_r(text, cursor, envir, commands_file = config$commands_file)
     if (!length(matched$candidates)) {
       state$overlay <- if (!is.null(matched$status) && nzchar(matched$status)) matched$status else
         "No completions. R names, commands, package names and file paths are supported."

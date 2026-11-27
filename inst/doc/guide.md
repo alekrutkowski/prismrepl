@@ -1,6 +1,6 @@
 # Prism REPL guide
 
-Version 0.6.4.
+Version 0.6.5.
 
 ## Capabilities at a glance
 
@@ -48,7 +48,7 @@ source archive:
 
 ```r
 install.packages(c("cli", "processx", "rlang", "stringi", "utf8"))
-install.packages("prismrepl_0.6.4.tar.gz", repos = NULL, type = "source")
+install.packages("prismrepl_0.6.5.tar.gz", repos = NULL, type = "source")
 prismrepl::repl()
 ```
 
@@ -317,13 +317,14 @@ without staging anything. Ctrl+U clears the query. **Tab switches between
 logical groups and alphabetical order**, while retaining the selected command
 when possible. You can start with a filter, for example `:h package`.
 
-The table below is the complete reference for all 39 commands. Aliases mean
+The table below is the complete reference for all 40 built-in commands. Aliases mean
 exactly the same thing as their full command names; collisions use two letters.
 
 | Command                       | Alias | Group              | Purpose                                                                                                          |
 | ----------------------------- | ----- | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | `:help [TEXT]`                | `:h`  | Discover           | Search commands and descriptions; choose one to place it in the input for approval.                              |
 | `:keys`                       | `:k`  | Discover           | Browse shortcuts; Enter places the selected :bind command in the input.                                          |
+| `:commands [TEXT]`            | `:co` | Discover           | Browse your saved custom R-function commands; choose one to place it in the input.                               |
 | `:doc TOPIC [PACKAGE]`        | `:d`  | Discover           | Read styled function documentation; also ?mean or ?stats::lm.                                                    |
 | `:docs PACKAGE`               | `:ds` | Discover           | Browse an installed package's documentation index.                                                               |
 | `:objects [TEXT]`             | `:o`  | Workspace          | Explore workspace bindings, optionally filtering their names.                                                    |
@@ -460,6 +461,158 @@ Use `:detach` without names for a batch selector. Core packages are protected.
 Space selects rows, `a` selects all/none, Enter accepts, and a confirmation is
 requested unless you explicitly disabled confirmations. `:rm` uses the same
 pattern for deleting workspace bindings.
+
+### Your own persistent colon-commands
+
+You can turn an R function into a named console command with
+`repl_add_command()`. The definition is saved by default and is available in
+later Prism sessions. Run the registration as ordinary R code, either inside
+Prism or before opening it:
+
+```r
+prismrepl::repl_add_command(
+  "where", function() getwd(),
+  description = "Show my current working directory"
+)
+
+prismrepl::repl_add_command(
+  "greet", function(name) paste("Hello,", name),
+  description = "Greet a person by name", alias = "gr"
+)
+
+prismrepl::repl_add_command(
+  "compare", function(left, right) paste(left, "versus", right),
+  description = "Put two labels beside each other"
+)
+
+prismrepl::repl_add_command(
+  "join", function(...) paste(c(...), collapse = " | "),
+  description = "Join any number of labels"
+)
+```
+
+You can then submit:
+
+```text
+:where
+:greet Ada Lovelace
+:gr Ada  Lovelace
+:compare "North region" "South region"
+:join first "second item" third
+```
+
+Every supplied argument reaches the function as a **single character string**.
+For example, `123`, `TRUE`, `NA`, `x=y` and `$HOME` remain those literal strings.
+The command parser does not turn them into numbers, logical values, missing
+values, named arguments or environment-variable substitutions. Convert an
+argument inside your function when you need another type.
+
+| Function signature        | Argument handling                                                        |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `function()`              | No arguments; submit the command name alone.                             |
+| `function(text)`          | The entire remaining text is one string; internal spaces are preserved.  |
+| `function(left, right)`   | Whitespace separates arguments; quote an argument containing spaces.     |
+| `function(...)`           | Zero or more whitespace-separated or quoted strings.                     |
+| `function(first, ...)`    | The first string fills `first`; additional strings enter `...`.          |
+
+The whole-remainder rule applies only to a function with exactly one formal
+argument that is not `...`. Thus `:greet Ada  Lovelace` retains the two spaces
+between the names. You can also surround that entire argument with a matching
+pair of quotes. Only that complete outer wrapper is removed; quotes within
+otherwise unquoted text remain literal. For commands with several arguments,
+single quotes, double quotes or backticks group a string containing spaces.
+Place the opening quote at the start of an argument, and separate the next
+argument with whitespace after the closing quote. Apostrophes inside bare
+words, such as `don't`, remain literal.
+
+Backslashes remain literal, so Windows paths do not need R-string escaping,
+including a quoted directory path ending in a backslash. There are no
+backslash escape sequences. To include a quotation mark inside a grouped
+argument, choose another quote style, for example `'She said "hello"'`.
+Unclosed quotes are reported before the command runs.
+
+An explicit `""` or `''` supplies an empty string. With no argument text, no
+argument is supplied, allowing an R default such as `function(name = "world")`
+to take effect. Normal R argument matching handles required and excess
+arguments. Arguments are positional; formal parameters after `...` should
+have defaults if they are needed by the function.
+
+Custom names and optional aliases appear in Tab completion and the searchable
+`:help` palette. Descriptions are searchable too. Use `:commands` or `:co` to
+browse only your custom commands. Choosing an entry stages it in the input;
+you can supply arguments and press Enter to run it. Custom commands enter
+history and use the same object previews, labeled messages, warning blocks,
+errors and tracebacks as ordinary R expressions.
+
+#### Review, replace or remove definitions
+
+```r
+prismrepl::repl_custom_commands()
+
+prismrepl::repl_add_command(
+  "greet", function(name) paste("Welcome,", name),
+  description = "Welcome a person", alias = "gr", replace = TRUE
+)
+
+prismrepl::repl_remove_command("greet")
+```
+
+Replacement is explicit. A custom name or alias cannot take over a built-in
+command, a built-in alias, or another custom command's name or alias. Names
+start with a letter and can contain letters, digits, underscores and hyphens;
+matching is case-insensitive.
+
+#### Persistence and function environments
+
+Definitions are saved in a separate `commands.rds` registry. Check its path
+with `repl_commands_file()`. It normally sits beside the selected preferences
+file. Registration and removal write the registry; merely opening the console,
+listing commands or completing a name does not execute the command body.
+
+Ordinary R closures retain their captured local values. For example, this
+command retains its prefix when you start another R session:
+
+```r
+greeting <- local({
+  prefix <- "Welcome to the project,"
+  function(name) paste(prefix, name)
+})
+prismrepl::repl_add_command("project-greet", greeting)
+```
+
+References to objects in `.GlobalEnv` continue to mean objects in the current
+R session. The registry does not save your entire workspace. Recreate those
+objects after restarting R, or capture the constants you need in a small local
+environment as above. Prefer explicit package calls, such as
+`utils::head()` or `data.table::fread()`, inside reusable commands. Open
+connections and other operating-system resources need to be reopened in the
+new session. The registry is limited to 16 MiB, including captured data; keep
+large datasets outside command definitions. Changes to a captured environment
+while a command runs are retained for this R process, and are saved again only
+if you re-register the function.
+
+For a separate registry, pass the same path when defining commands and when
+configuring the console:
+
+```r
+path <- file.path(tempdir(), "project-commands.rds")
+prismrepl::repl_add_command("where", function() getwd(), file = path)
+cfg <- prismrepl::repl_config(commands_file = path)
+# In an interactive R session:
+# prismrepl::repl(config = cfg)
+```
+
+Use a persistent path instead of `tempdir()` when you want to retain that
+registry. A relative `commands_file` path is resolved when the configuration
+is created, so `:cd` keeps using that registry. `PRISMREPL_COMMANDS_FILE` can
+select the default path. Using
+`file = NULL` for registration and `commands_file = NULL` in the configuration
+selects an in-memory registry for the current R session.
+
+Set `external = TRUE` when registering a function that needs ordinary terminal
+input or output, for example an interactive external program. Prism temporarily
+leaves its full-screen interface for that command. Press Enter or Ctrl+C at the
+return prompt to restore the interface afterward.
 
 ### Directory navigation, previews and sourcing
 

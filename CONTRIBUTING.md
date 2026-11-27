@@ -5,13 +5,13 @@ and avoid accessing undocumented R internals. Regenerate exported help pages
 with `roxygen2::roxygenise()` after changing the documented API.
 
 Run `testthat::test_local()` while developing. For the final package check,
-build the source archive and check that exact file. For version 0.6.4, run
+build the source archive and check that exact file. For version 0.6.5, run
 these commands from the parent of a checkout named `prismrepl`:
 
 ```sh
 R CMD build prismrepl
-python3 prismrepl/tools/check-source-archive.py prismrepl_0.6.4.tar.gz --description prismrepl/DESCRIPTION
-R CMD check --as-cran prismrepl_0.6.4.tar.gz
+python3 prismrepl/tools/check-source-archive.py prismrepl_0.6.5.tar.gz --description prismrepl/DESCRIPTION
+R CMD check --as-cran prismrepl_0.6.5.tar.gz
 ```
 
 Use the checkout's actual directory name and the version in `DESCRIPTION`.

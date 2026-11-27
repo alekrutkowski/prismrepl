@@ -1,7 +1,7 @@
- PRISM REPL  0.6.4                                                                                                           ERROR 
+ PRISM REPL  0.6.5                                                                                                           ERROR 
  SESSION  live ───────────────────────────────────────────────────────────────────────────────│ SESSION INFO ──────────────────────
  r> inspect_flowers(flowers)                                                                  │ WORKSPACE                          
-   Sepal.Length Sepal.Width Petal.Length Petal.Width Species                                  │  R RAM: 108.7 MiB                  
+   Sepal.Length Sepal.Width Petal.Length Petal.Width Species                                  │  R RAM: 109.3 MiB                  
  1          5.1         3.5          1.4         0.2  setosa                                  │  check_response  function ~6 Kb    
  2          4.9          NA          1.4         0.2  setosa                                  │  fit_flowers  function ~1.6 Kb     
  3          4.7         3.2          1.3         0.2  setosa                                  │  flowers  data.frame 150 x 5 ~7....
@@ -19,22 +19,22 @@
  │ 2. fit_flowers(x)                                                                        │ │  :packages list  :detach select    
  │ 3. check_response(x$Class)                                                               │ │ FILES                              
  │ 4. stop("Response column 'Class' was not found. Use 'Species'.", call. = FALSE)          │ │  ../                               
- ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │  .github/                          
-   Explain with Mistral AI ↗                                                                  │  dist/                             
-                                                                                              │  inst/                             
-                                                                                              │  man/                              
-                                                                                              │  R/                                
-                                                                                              │  src/                              
-                                                                                              │  tests/                            
-                                                                                              │  tools/                            
-                                                                                              │  .gitattributes                    
-                                                                                              │  .gitignore                        
-                                                                                              │  .Rbuildignore                     
-                                                                                              │  CONTRIBUTING.md                   
- R  edit ─────────────────────────────────────────────────────────────────────────────────────│  cran-comments.md                  
- r> flowers |>                                                                                │  DESCRIPTION                       
- +    subset(!is.na(Sepal.Width)) |>                                                          │  LICENSE                           
- +    transform(ratio = Sepal.Length / Sepal.Width) |>                                        │  +6 more                           
+ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │  .agents/                          
+   Explain with Mistral AI ↗                                                                  │  .aws/                             
+                                                                                              │  .codex/                           
+                                                                                              │  .git/                             
+                                                                                              │  binary060-R45/                    
+                                                                                              │  binary060-R46/                    
+                                                                                              │  binary061-R45/                    
+                                                                                              │  binary061-R46/                    
+                                                                                              │  binary062-R45/                    
+                                                                                              │  binary062-R46/                    
+                                                                                              │  candidate062-R45/                 
+                                                                                              │  candidate062-R46/                 
+ R  edit ─────────────────────────────────────────────────────────────────────────────────────│  candidate065-R45/                 
+ r> flowers |>                                                                                │  candidate065-R46/                 
+ +    subset(!is.na(Sepal.Width)) |>                                                          │  check-runner062-R45/              
+ +    transform(ratio = Sepal.Length / Sepal.Width) |>                                        │  +35 more                          
  +    head(6L)  # Tab completes names; F1 opens function help                                 │  :files browse                     
- R RAM: 108.7 MiB  |  objects: 5  |  packages: 7 attached  |  objects ~23.8 Kb                                                     
+ R RAM: 109.3 MiB  |  objects: 5  |  packages: 7 attached  |  objects ~23.8 Kb                                                     
  Enter run  Ctrl+J newline  Tab complete  Ctrl+R history  F1 docs  F2 keys  PageUp scroll                                          

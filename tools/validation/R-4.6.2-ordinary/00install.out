@@ -1,0 +1,23 @@
+* installing *source* package ‘prismrepl’ ...
+** this is package ‘prismrepl’ version ‘0.6.5’
+** using staged installation
+** libs
+using C compiler: ‘x86_64-linux-gnu-gcc (Debian 14.2.0-19) 14.2.0’
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c clipboard.c -o clipboard.o
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c init.c -o init.o
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c keyparse.c -o keyparse.o
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c memory.c -o memory.o
+x86_64-linux-gnu-gcc -I"/workspace/scratch/62ed418800ca/runtime/root46/usr/share/R/include" -DNDEBUG       -fpic  -g -O2 -ffile-prefix-map=/build/reproducible-path/r-base-4.6.2=. -fstack-protector-strong -fstack-clash-protection -Wformat -Werror=format-security -fcf-protection -Wdate-time -D_FORTIFY_SOURCE=2  -c terminal.c -o terminal.o
+x86_64-linux-gnu-gcc -shared -L/workspace/scratch/62ed418800ca/runtime/root46/usr/lib/R/lib -Wl,-z,relro -o prismrepl.so clipboard.o init.o keyparse.o memory.o terminal.o -L/workspace/scratch/62ed418800ca/runtime/root46/usr/lib/R/lib -lR
+installing to /workspace/scratch/62ed418800ca/runtime/validation065/R-4.6.2-ordinary/prismrepl.Rcheck/00LOCK-prismrepl/00new/prismrepl/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded from temporary location
+** checking absolute paths in shared objects and dynamic libraries
+** testing if installed package can be loaded from final location
+** testing if installed package keeps a record of temporary installation path
+* DONE (prismrepl)

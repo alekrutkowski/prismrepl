@@ -93,22 +93,27 @@
 #' @param code Source text.
 #' @param envir Evaluation environment.
 #' @param config Console configuration.
+#' @param expressions Optional expressions, retaining a custom command's closure.
 #' @return A structured evaluation result.
 #' @keywords internal
 #' @noRd
-.evaluate_session <- function(code, envir, config) {
+.evaluate_session <- function(code, envir, config, expressions = NULL) {
   stopifnot("code must be nonmissing text" = is.character(code) && !anyNA(code),
             "envir must be an environment" = is.environment(envir),
-            "config must be a console configuration" = inherits(config, "prismrepl_config"))
+            "config must be a console configuration" = inherits(config, "prismrepl_config"),
+            "expressions must be NULL or an expression vector" =
+              is.null(expressions) || is.expression(expressions))
+  evaluate <- if (is.null(expressions)) function(cfg) evaluate_r(code, envir, cfg, display = TRUE) else
+    function(cfg) .evaluate_r(code, envir, cfg, display = TRUE, expressions = expressions)
   if (!is.environment(config$screen) || !isTRUE(config$screen$active))
-    return(evaluate_r(code, envir, config, display = TRUE))
+    return(evaluate(config))
   screen <- config$screen
   screen$mode <- "RUNNING"
   screen$last_editor <- NULL
   screen_render(screen, config = config)
   completed <- FALSE
   on.exit({ if (!completed) screen$mode <- "READY" }, add = TRUE)
-  result <- .with_screen_output(function(cfg) evaluate_r(code, envir, cfg, display = TRUE), config)
+  result <- .with_screen_output(evaluate, config)
   screen$mode <- if (result$interrupted) "INTERRUPTED" else if (!is.null(result$error)) "ERROR"
     else if (length(result$warnings)) "WARNING" else "READY"
   screen$elapsed <- result$elapsed

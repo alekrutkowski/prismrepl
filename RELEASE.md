@@ -47,21 +47,32 @@ follows the entered order and stops at the first error; earlier successful
 attachments remain. Detachment retains loaded namespaces and protects core
 packages.
 
+Custom colon commands are ordinary R functions registered with
+`repl_add_command()`. Definitions persist in a separate `commands.rds` file
+and appear in help, Tab completion and the `:commands` (`:co`) palette.
+Zero-argument functions take no text; a single-argument function receives the
+complete remaining text with internal spaces preserved. Multiple arguments
+and `...` use whitespace-separated strings, with quotes grouping text that
+contains spaces. Supplied arguments remain literal character scalars.
+`repl_custom_commands()` lists saved definitions and `repl_remove_command()`
+removes one. The README explains aliases, defaults, quoted empty strings,
+function environments, separate registries and session-only definitions.
+
 ## Select and install the package archive
 
-For version 0.6.4, the R source-package asset is exactly
-**`prismrepl_0.6.4.tar.gz`**. It is produced by `R CMD build` and is the
+For version 0.6.5, the R source-package asset is exactly
+**`prismrepl_0.6.5.tar.gz`**. It is produced by `R CMD build` and is the
 artifact used for source installation, final package checks and CRAN submission.
 Its filename has no platform or architecture suffix. The delivered source archive
 is unchanged by the local check tools. Its SHA-256 is:
 
 ```text
-6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
+f25b8b9773dbd9633ba4392a24c9f4cd31fde151bbf6cc97ae7c1e9e5db4635c
 ```
 
 | Release item                            | Intended use                                                     |
 | --------------------------------------- | ---------------------------------------------------------------- |
-| `prismrepl_0.6.4.tar.gz`                | Install from source; check and submit this built archive to CRAN |
+| `prismrepl_0.6.5.tar.gz`                | Install from source; check and submit this built archive to CRAN |
 | Platform binary and its `.manifest`     | Install on the matching operating system, CPU and R series       |
 | Repository ZIP or GitHub source archive | Obtain a source checkout for development and `R CMD build`       |
 | `prismrepl-fix-check-flags.R`           | Set up recognition of the selected R build's inherited flag once |
@@ -74,7 +85,7 @@ or newer with the matching R development tools and a C compiler, then run:
 
 ```r
 install.packages(c("cli", "processx", "rlang", "stringi", "utf8"))
-install.packages("prismrepl_0.6.4.tar.gz", repos = NULL, type = "source")
+install.packages("prismrepl_0.6.5.tar.gz", repos = NULL, type = "source")
 prismrepl::repl()
 ```
 
@@ -102,7 +113,7 @@ If R requests the optional Inconsolata font but its LaTeX files are absent,
 the following complete check uses the standard fonts instead:
 
 ```sh
-R_RD4PDF=times,hyper /usr/bin/R CMD check --as-cran /mnt/c/Users/alek/Downloads/prismrepl_0.6.4.tar.gz
+R_RD4PDF=times,hyper /usr/bin/R CMD check --as-cran /mnt/c/Users/alek/Downloads/prismrepl_0.6.5.tar.gz
 ```
 
 The one-time compiler-flag setup is described below. Change the paths to
@@ -146,7 +157,7 @@ Windows C: drive:
 
 ```sh
 /usr/bin/Rscript --no-init-file --no-site-file /mnt/c/Users/alek/Downloads/prismrepl-fix-check-flags.R --apply
-/usr/bin/R CMD check --as-cran /mnt/c/Users/alek/Downloads/prismrepl_0.6.4.tar.gz
+/usr/bin/R CMD check --as-cran /mnt/c/Users/alek/Downloads/prismrepl_0.6.5.tar.gz
 ```
 
 After successful setup, use your usual `R CMD check --as-cran` command for
@@ -212,13 +223,13 @@ It includes its helpers and requires the normal `processx` dependency.
 On Ubuntu or WSL2:
 
 ```sh
-/usr/bin/Rscript --no-init-file --no-site-file /mnt/c/Users/alek/Downloads/prismrepl-check.R /mnt/c/Users/alek/Downloads/prismrepl_0.6.4.tar.gz
+/usr/bin/Rscript --no-init-file --no-site-file /mnt/c/Users/alek/Downloads/prismrepl-check.R /mnt/c/Users/alek/Downloads/prismrepl_0.6.5.tar.gz
 ```
 
 On Windows, this example explicitly selects R 4.5.0 in PowerShell:
 
 ```powershell
-& "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" --no-init-file --no-site-file "C:\Users\alek\Downloads\prismrepl-check.R" "C:\Users\alek\Downloads\prismrepl_0.6.4.tar.gz"
+& "C:\Program Files\R\R-4.5.0\bin\Rscript.exe" --no-init-file --no-site-file "C:\Users\alek\Downloads\prismrepl-check.R" "C:\Users\alek\Downloads\prismrepl_0.6.5.tar.gz"
 ```
 
 Choose the executable for the R version you intend to check. An optional
@@ -317,22 +328,22 @@ when the selected R build requires it. Rebuild only when preparing an archive
 from an intended source change. A new build has its own timestamp and checksum.
 
 The commands below assume the checkout directory is named `prismrepl` and
-its `DESCRIPTION` has `Version: 0.6.4`. Run them from the checkout's parent
+its `DESCRIPTION` has `Version: 0.6.5`. Run them from the checkout's parent
 directory, using the current R release or R-patched. Replace the directory
 name if your checkout has another name:
 
 ```sh
 R CMD build prismrepl
-python3 prismrepl/tools/check-source-archive.py prismrepl_0.6.4.tar.gz --description prismrepl/DESCRIPTION
-R CMD check --as-cran prismrepl_0.6.4.tar.gz
+python3 prismrepl/tools/check-source-archive.py prismrepl_0.6.5.tar.gz --description prismrepl/DESCRIPTION
+R CMD check --as-cran prismrepl_0.6.5.tar.gz
 ```
 
 The corresponding PowerShell commands use R's executable explicitly:
 
 ```powershell
 R.exe CMD build prismrepl
-py -3 .\prismrepl\tools\check-source-archive.py .\prismrepl_0.6.4.tar.gz --description .\prismrepl\DESCRIPTION
-R.exe CMD check --as-cran .\prismrepl_0.6.4.tar.gz
+py -3 .\prismrepl\tools\check-source-archive.py .\prismrepl_0.6.5.tar.gz --description .\prismrepl\DESCRIPTION
+R.exe CMD check --as-cran .\prismrepl_0.6.5.tar.gz
 ```
 
 Continue only after each command succeeds. The archive gate verifies a
@@ -349,7 +360,7 @@ every error, warning and note before submission. The final
 check includes the manual; `--no-manual` is useful for a preliminary local
 check when TeX is unavailable, but does not replace that final check.
 
-Upload the **same unchanged `prismrepl_0.6.4.tar.gz` file** whose check log
+Upload the **same unchanged `prismrepl_0.6.5.tar.gz` file** whose check log
 and checksum you reviewed. If source code, tests, documentation, `DESCRIPTION`
 or build rules change, repeat the build, archive gate and check, then use the
 new archive and checksum. Keep the repository ZIP for GitHub and development.

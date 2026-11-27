@@ -1,7 +1,0 @@
-Status: already repaired 
-Check profile: /workspace/scratch/62ed418800ca/runtime/flags064/prismrepl-check.Renviron 
-Verified R build: 4.6.2 at /workspace/scratch/62ed418800ca/runtime/flags064/R-inherited
-Inherited leaf-frame flag: TRUE
-Use your ordinary R CMD check --as-cran command after a successful repair.
-Compiler flags and all clock/timestamp checks are unchanged.
-The user check profile is shared: rerun this tool when changing R builds.

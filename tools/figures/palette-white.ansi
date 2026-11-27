@@ -4,6 +4,7 @@
 [38;2;22;24;29;48;2;255;255;255m  [Discover]                                                                                                                       [0m
 [38;2;22;24;29;48;2;255;255;255m  :help [TEXT]  (:h)              Search commands and descriptions; choose one to place it in the input for approval.              [0m
 [38;2;22;24;29;48;2;255;255;255m  :keys  (:k)                     Browse shortcuts; Enter places the selected :bind command in the input.                          [0m
+[38;2;22;24;29;48;2;255;255;255m  :commands [TEXT]  (:co)         Browse your saved custom R-function commands; choose one to place it in the input.               [0m
 [38;2;22;24;29;48;2;255;255;255m  :doc TOPIC [PACKAGE]  (:d)      Read styled function documentation; also ?mean or ?stats::lm.                                    [0m
 [38;2;22;24;29;48;2;255;255;255m  :docs PACKAGE  (:ds)            Browse an installed package's documentation index.                                               [0m
 [38;2;22;24;29;48;2;255;255;255m  [Workspace]                                                                                                                      [0m
@@ -31,6 +32,5 @@
 [38;2;22;24;29;48;2;255;255;255m  :recall NUMBER  (:re)           Place a numbered history entry in the input for editing and approval.                            [0m
 [38;2;22;24;29;48;2;255;255;255m  :trace  (:tr)                   Show the most recent error's captured call trace.                                                [0m
 [38;2;22;24;29;48;2;255;255;255m  :explain [copy] [minimal]       Show an AI explanation link, or copy its prompt; minimal omits source and call trace.            [0m
-[38;2;22;24;29;48;2;255;255;255m  (:e)                                                                                                                             [0m
-[38;2;82;88;102;48;2;241;243;245m 39/39 commands. Selection fills the input; review arguments and press Enter there to run.                                         [0m
+[38;2;82;88;102;48;2;241;243;245m 40/40 commands. Selection fills the input; review arguments and press Enter there to run.                                         [0m
 [38;2;82;88;102;48;2;241;243;245m [1;38;2;18;72;189mEnter[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mstage command[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mUp/Down[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mmove[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mTab[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245msort[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mCtrl+U[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mclear[0m[38;2;82;88;102;48;2;241;243;245m  [1;38;2;18;72;189mEscape[0m[38;2;82;88;102;48;2;241;243;245m [38;2;82;88;102;48;2;241;243;245mcancel[0m[38;2;82;88;102;48;2;241;243;245m]8;;\[0m[38;2;82;88;102;48;2;241;243;245m                                                          ]8;;\[0m[38;2;82;88;102;48;2;241;243;245m[0m

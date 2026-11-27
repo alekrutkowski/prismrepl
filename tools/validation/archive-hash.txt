@@ -1,4 +1,0 @@
-Final source archive before all three full checks:
-6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed
-After all three full checks:
-6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed

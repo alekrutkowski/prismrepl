@@ -1,3 +1,0 @@
-PASS: R 4.5.0 persistent profile repair, exact byte preservation, backups, idempotence,
- undo with later edits, edited-block refusal, inherited-only guard, cross-build
- revalidation, new-profile cleanup, disabled-profile refusal and unchanged clocks/compiler.

@@ -44,7 +44,8 @@
   stopifnot("data must contain command records" = is.data.frame(data) && "command" %in% names(data),
             "width must be positive" = .is_count(width, 1L), "grouped must be logical" = .is_flag(grouped))
   if (!nrow(data)) return(list(lines = "No commands match. Backspace or Ctrl+U changes the filter.", records = 0L))
-  table <- .table_format(data.frame(command = paste0(data$command, "  (:", sub("^:", "", data$alias), ")"),
+  table <- .table_format(data.frame(command = paste0(data$command,
+    ifelse(nzchar(data$alias), paste0("  (:", sub("^:", "", data$alias), ")"), "")),
     description = data$description, stringsAsFactors = FALSE), width)
   indices <- if (grouped) split(seq_len(nrow(data)), factor(data$group, levels = unique(data$group))) else
     list(seq_len(nrow(data)))
@@ -70,7 +71,7 @@
 #' @param cache Optional panel cache.
 #' @return Styled rows with hit-test and viewport attributes.
 #' @noRd
-.palette_frame <- function(state, config, size, catalog = .command_catalog(), cache = NULL) {
+.palette_frame <- function(state, config, size, catalog = .command_catalog(config$commands_file), cache = NULL) {
   stopifnot("state must contain a query" = is.list(state) && is.character(state$query),
             "config must be a console configuration" = inherits(config, "prismrepl_config"))
   data <- .palette_data(catalog, state$query, state$sort)
@@ -111,7 +112,7 @@
 #' @param hit Command index under the pointer, or NA.
 #' @return Updated state; chosen is insertion text, never evaluated code.
 #' @noRd
-.palette_apply <- function(state, event, config, catalog = .command_catalog(), page = 8L, hit = NA_integer_) {
+.palette_apply <- function(state, event, config, catalog = .command_catalog(config$commands_file), page = 8L, hit = NA_integer_) {
   stopifnot("state and event must be lists" = is.list(state) && is.list(event),
             "page must be positive" = .is_count(page, 1L))
   data <- .palette_data(catalog, state$query, state$sort)
@@ -159,12 +160,13 @@
 #' Choose a Command to Stage in the Console Input
 #' @param config Console configuration.
 #' @param query Initial name or description filter.
+#' @param catalog Command metadata to browse; defaults to this configuration's
+#'   built-in and custom commands. Selecting an entry only stages its text.
 #' @return Insertion text or NULL; this function never executes a command.
 #' @noRd
-.command_palette <- function(config, query = "") {
+.command_palette <- function(config, query = "", catalog = .command_catalog(config$commands_file)) {
   stopifnot("config must be a console configuration" = inherits(config, "prismrepl_config"),
             "query must be scalar text" = is.character(query) && length(query) == 1L && !is.na(query))
-  catalog <- .command_catalog()
   state <- .palette_state(query)
   session <- .viewer_start(config)
   on.exit(.viewer_finish(session, config), add = TRUE)

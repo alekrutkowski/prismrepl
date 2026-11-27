@@ -1,12 +1,4 @@
-Output: /workspace/scratch/62ed418800ca/check064-final-audited-R45 
-Source SHA-256: 6433f91dc1e8aaa82990c000806a91317003756c8542696686c9ed1061e92fed 
-Verifying UTC against independent HTTPS sources...
-UTC verified. Compiler flags are unchanged.
-R's duplicate external-time lookup is replaced for this child only.
-R's future-file and compilation-flags checks remain enabled.
-Running the complete R CMD check --as-cran, including manuals.
-
-* using log directory ‘/workspace/scratch/62ed418800ca/check064-final-audited-R45/prismrepl.Rcheck’
+* using log directory ‘/workspace/scratch/62ed418800ca/runtime/validation065/R-4.5.0-audited/prismrepl.Rcheck’
 * using R version 4.5.0 (2025-04-11)
 * using platform: x86_64-pc-linux-gnu
 * R was compiled by
@@ -16,9 +8,9 @@ Running the complete R CMD check --as-cran, including manuals.
 * using session charset: UTF-8
 * using option ‘--as-cran’
 * checking for file ‘prismrepl/DESCRIPTION’ ... OK
-* this is package ‘prismrepl’ version ‘0.6.4’
+* this is package ‘prismrepl’ version ‘0.6.5’
 * package encoding: UTF-8
-* checking CRAN incoming feasibility ... [4s/49s] NOTE
+* checking CRAN incoming feasibility ... [4s/54s] NOTE
 Maintainer: ‘Alek Rutkowski <alek.rutkowski@gmail.com>’
 
 New submission
@@ -74,8 +66,8 @@ New submission
 * checking examples ... OK
 * checking for unstated dependencies in ‘tests’ ... OK
 * checking tests ...
-  Running ‘testthat.R’ [23s/23s]
- [23s/23s] OK
+  Running ‘testthat.R’ [28s/28s]
+ [29s/29s] OK
 * checking PDF version of manual ... OK
 * checking HTML version of manual ... OK
 * checking for non-standard things in the check directory ... OK
@@ -84,9 +76,6 @@ New submission
 
 Status: 1 NOTE
 See
-  ‘/workspace/scratch/62ed418800ca/check064-final-audited-R45/prismrepl.Rcheck/00check.log’
+  ‘/workspace/scratch/62ed418800ca/runtime/validation065/R-4.5.0-audited/prismrepl.Rcheck/00check.log’
 for details.
 
-
-Check log: /workspace/scratch/62ed418800ca/check064-final-audited-R45/prismrepl.Rcheck/00check.log 
-Audit: /workspace/scratch/62ed418800ca/check064-final-audited-R45/preflight.txt 
